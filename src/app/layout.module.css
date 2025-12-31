@@ -1,0 +1,24 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.main {
+  flex: 1;
+  padding-bottom: 5rem; /* Space for bottom nav on mobile */
+  overflow-x: hidden;
+}
+
+/* Desktop: sidebar layout */
+@media (min-width: 768px) {
+  .layout {
+    flex-direction: row;
+  }
+
+  .main {
+    padding-bottom: 0;
+    padding-left: 16rem; /* Space for sidebar */
+  }
+}

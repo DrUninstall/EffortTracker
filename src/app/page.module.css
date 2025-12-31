@@ -1,0 +1,83 @@
+.container {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.dateNav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dateButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease;
+}
+
+.dateButton:hover:not(:disabled) {
+  background-color: var(--accent);
+}
+
+.dateButton:disabled {
+  cursor: default;
+}
+
+.dateText {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.todayHint {
+  font-size: 0.6875rem;
+  color: var(--primary);
+}
+
+/* Task List */
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.emptyState p {
+  font-size: 1rem;
+}

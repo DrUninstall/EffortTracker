@@ -1,53 +1,39 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 
 interface PageTransitionProps {
   children: React.ReactNode;
 }
 
-const variants = {
-  initial: {
-    opacity: 0,
-    y: 8,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-  },
-  exit: {
-    opacity: 0,
-    y: -4,
-  },
-};
-
+/**
+ * Simple fade-in animation for page content.
+ * We avoid AnimatePresence mode="wait" as it can cause blank screens
+ * when pages have their own AnimatePresence or layout animations.
+ */
 export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={pathname}
-        variants={variants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={{
-          duration: 0.2,
-          ease: [0.215, 0.61, 0.355, 1], // ease-out-cubic
-        }}
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-        }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      key={pathname}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{
+        duration: 0.15,
+        ease: 'easeOut',
+      }}
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+      }}
+    >
+      {children}
+    </motion.div>
   );
 }

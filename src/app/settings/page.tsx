@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -60,9 +60,23 @@ const TASK_COLORS = [
   { value: '#ec4899', label: 'Pink' },
 ];
 
-export default function SettingsPage() {
+// Component to handle search params (needs Suspense)
+function SearchParamsHandler({ onNewTask }: { onNewTask: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      onNewTask();
+      router.replace('/settings');
+    }
+  }, [searchParams, router, onNewTask]);
+
+  return null;
+}
+
+export default function SettingsPage() {
+  const router = useRouter();
   const {
     tasks,
     addTask,
@@ -95,15 +109,6 @@ export default function SettingsPage() {
   const [formColor, setFormColor] = useState('');
   const [formPomodoro, setFormPomodoro] = useState<PomodoroDefaults>(DEFAULT_POMODORO);
 
-  // Open dialog if ?new=true in URL
-  useEffect(() => {
-    if (searchParams.get('new') === 'true') {
-      handleAddTask();
-      // Remove the query param
-      router.replace('/settings');
-    }
-  }, [searchParams, router]);
-
   const resetForm = () => {
     setFormName('');
     setFormPriority('IMPORTANT');
@@ -117,10 +122,10 @@ export default function SettingsPage() {
     setEditingTask(null);
   };
 
-  const handleAddTask = () => {
+  const handleAddTask = useCallback(() => {
     resetForm();
     setShowTaskDialog(true);
-  };
+  }, []);
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
@@ -226,6 +231,11 @@ export default function SettingsPage() {
 
   return (
     <div className={styles.container}>
+      {/* Handle ?new=true search param */}
+      <Suspense fallback={null}>
+        <SearchParamsHandler onNewTask={handleAddTask} />
+      </Suspense>
+
       {/* Header */}
       <header className={styles.header}>
         <h1 className={styles.title}>Settings</h1>

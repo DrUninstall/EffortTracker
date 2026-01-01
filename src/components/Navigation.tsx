@@ -22,6 +22,19 @@ export function Navigation() {
     <>
       {/* Mobile Bottom Navigation */}
       <nav className={styles.mobileNav} aria-label="Main navigation">
+        {/* Animated indicator - positioned based on active tab index */}
+        <motion.div
+          className={styles.mobileActiveIndicator}
+          initial={false}
+          animate={{
+            x: `${NAV_ITEMS.findIndex((item) => item.href === pathname) * 100}%`,
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 500,
+            damping: 35,
+          }}
+        />
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -32,17 +45,6 @@ export function Navigation() {
               className={cn(styles.mobileNavItem, isActive && styles.active)}
               aria-current={isActive ? 'page' : undefined}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="mobileActiveIndicator"
-                  className={styles.mobileActiveIndicator}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 500,
-                    damping: 35,
-                  }}
-                />
-              )}
               <Icon size={24} className={styles.navIcon} />
               <span className={styles.mobileNavLabel}>{item.label}</span>
             </Link>
@@ -56,6 +58,19 @@ export function Navigation() {
           <h1 className={styles.logo}>Effort Ledger</h1>
         </div>
         <nav className={styles.sidebarNav}>
+          {/* Animated indicator */}
+          <motion.div
+            className={styles.sidebarActiveIndicator}
+            initial={false}
+            animate={{
+              y: `${NAV_ITEMS.findIndex((item) => item.href === pathname) * 100}%`,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 500,
+              damping: 35,
+            }}
+          />
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -66,17 +81,6 @@ export function Navigation() {
                 className={cn(styles.sidebarNavItem, isActive && styles.active)}
                 aria-current={isActive ? 'page' : undefined}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebarActiveIndicator"
-                    className={styles.sidebarActiveIndicator}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 500,
-                      damping: 35,
-                    }}
-                  />
-                )}
                 <Icon size={20} className={styles.navIcon} />
                 <span>{item.label}</span>
               </Link>

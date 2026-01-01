@@ -21,6 +21,7 @@ export function FloatingTimerBar() {
     getRemainingMs,
     pomodoroPhase,
     resetTimer,
+    isHydrated,
   } = useTimerStore();
 
   const { addLog, undoLastLog, selectedDate } = useTaskStore();
@@ -97,6 +98,11 @@ export function FloatingTimerBar() {
   const handleExpand = useCallback(() => {
     router.push('/timer');
   }, [router]);
+
+  // Don't show until hydrated to avoid flash
+  if (!isHydrated) {
+    return null;
+  }
 
   // Don't show if no active timer
   if (!taskId) {

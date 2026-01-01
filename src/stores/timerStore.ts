@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { TimerMode, PomodoroPhase, PomodoroDefaults } from '@/types';
+import { zustandStorage } from '@/lib/storage';
 
 interface TimerState {
   mode: TimerMode;
@@ -11,6 +13,7 @@ interface TimerState {
   pomodoroPhase: PomodoroPhase;
   pomodoroCycle: number; // current cycle (1-based)
   pomodoroDefaults: PomodoroDefaults | null;
+  isHydrated: boolean;
 
   // Actions
   startTimer: (
@@ -41,18 +44,21 @@ const DEFAULT_POMODORO: PomodoroDefaults = {
   cycles_before_long_break: 4,
 };
 
-export const useTimerStore = create<TimerState>((set, get) => ({
-  mode: 'STOPWATCH',
-  taskId: null,
-  taskName: '',
-  isRunning: false,
-  startTime: null,
-  pausedElapsed: 0,
-  pomodoroPhase: 'FOCUS',
-  pomodoroCycle: 1,
-  pomodoroDefaults: null,
+export const useTimerStore = create<TimerState>()(
+  persist(
+    (set, get) => ({
+      mode: 'STOPWATCH',
+      taskId: null,
+      taskName: '',
+      isRunning: false,
+      startTime: null,
+      pausedElapsed: 0,
+      pomodoroPhase: 'FOCUS',
+      pomodoroCycle: 1,
+      pomodoroDefaults: null,
+      isHydrated: false,
 
-  startTimer: (taskId, taskName, mode, pomodoroDefaults) => {
+      startTimer: (taskId, taskName, mode, pomodoroDefaults) => {
     set({
       taskId,
       taskName,
@@ -184,4 +190,27 @@ export const useTimerStore = create<TimerState>((set, get) => ({
         return defaults.long_break_minutes;
     }
   },
-}));
+    }),
+    {
+      name: 'effort-ledger-timer',
+      storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        // Only persist essential timer state, not functions
+        mode: state.mode,
+        taskId: state.taskId,
+        taskName: state.taskName,
+        isRunning: state.isRunning,
+        startTime: state.startTime,
+        pausedElapsed: state.pausedElapsed,
+        pomodoroPhase: state.pomodoroPhase,
+        pomodoroCycle: state.pomodoroCycle,
+        pomodoroDefaults: state.pomodoroDefaults,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isHydrated = true;
+        }
+      },
+    }
+  )
+);

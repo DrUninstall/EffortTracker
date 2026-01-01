@@ -1,0 +1,149 @@
+/* WeeklyOverview - Horizontal week view widget */
+
+.container {
+  padding: var(--space-3) var(--space-4);
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--stroke-weak);
+  margin-bottom: var(--space-3);
+}
+
+.weekRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dayButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) var(--ease-out-cubic);
+  flex: 1;
+  min-width: 0;
+}
+
+.dayButton:hover {
+  background: rgb(var(--fill-weak));
+}
+
+.dayButton:focus-visible {
+  outline: none;
+  box-shadow: var(--stroke-focus);
+}
+
+.dayLabel {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgb(var(--text-weak));
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.today .dayLabel {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.dayCircleWrapper {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.dayCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--duration-fast) var(--ease-out-cubic);
+}
+
+.dayButton:active .dayCircle {
+  transform: scale(0.9);
+}
+
+/* Empty state */
+.empty {
+  background: rgb(var(--grey-light-100));
+}
+
+html.dark .empty {
+  background: rgb(var(--grey-dark-100));
+}
+
+/* Partial completion - gradient fill set inline */
+.partial {
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Complete state */
+.complete {
+  background: var(--success);
+}
+
+.checkmark {
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Today highlight ring */
+.todayRing {
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: todayPulse 2s ease-in-out infinite;
+}
+
+@keyframes todayPulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 360px) {
+  .dayLabel {
+    font-size: 0.5625rem;
+  }
+
+  .dayCircleWrapper {
+    width: 20px;
+    height: 20px;
+  }
+
+  .dayCircle {
+    width: 20px;
+    height: 20px;
+  }
+
+  .checkmark svg {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .todayRing {
+    animation: none;
+    opacity: 1;
+  }
+}

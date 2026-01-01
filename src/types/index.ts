@@ -2,6 +2,7 @@
 
 export type Priority = 'CORE' | 'IMPORTANT' | 'OPTIONAL';
 export type QuotaType = 'DAILY' | 'WEEKLY';
+export type TaskType = 'TIME' | 'HABIT';
 export type LogSource = 'QUICK_ADD' | 'TIMER' | 'POMODORO' | 'MANUAL';
 
 export interface PomodoroDefaults {
@@ -17,9 +18,12 @@ export interface Task {
   priority: Priority;
   color?: string; // optional subtle color (must meet contrast accessibility)
   quota_type: QuotaType;
-  daily_quota_minutes?: number; // required if DAILY
-  weekly_quota_minutes?: number; // required if WEEKLY
+  task_type: TaskType; // TIME for time-based, HABIT for counter-based
+  daily_quota_minutes?: number; // required if DAILY + TIME
+  weekly_quota_minutes?: number; // required if WEEKLY + TIME
   weekly_days_target?: number; // optional 1-7, informational only
+  habit_quota_count?: number; // required if HABIT (e.g., 8 glasses of water)
+  habit_unit?: string; // optional unit label (e.g., "glasses", "reps")
   allow_carryover: boolean;
   pomodoro_defaults: PomodoroDefaults;
   is_archived: boolean;
@@ -30,27 +34,41 @@ export interface IncrementLog {
   id: string;
   task_id: string;
   date: string; // YYYY-MM-DD (user local date at log time)
-  minutes: number; // positive only, never floats
+  minutes: number; // positive only, never floats (for TIME tasks)
+  count?: number; // completion count (for HABIT tasks, typically 1)
   source: LogSource;
   created_at: number; // timestamp
+}
+
+// Streak data for forgiving streak system
+export interface StreakData {
+  currentStreak: number;        // Consecutive days/weeks hitting quota
+  longestStreak: number;        // Personal record
+  lastCompletedDate: string;    // YYYY-MM-DD of last quota completion
+  freezesAvailable: number;     // Max 2, earn 1 per 7-day streak
+  freezeUsedDates: string[];    // Dates when freezes were auto-applied
+  streakStartDate: string;      // When current streak began
 }
 
 // Computed types for UI
 export interface TaskProgress {
   task: Task;
-  progress: number; // minutes logged today or this week
+  progress: number; // minutes or count depending on task_type
   effectiveQuota: number; // quota minus any carryover
   remaining: number; // max(0, effectiveQuota - progress)
   isDone: boolean;
   carryoverApplied: number; // how much carryover was applied (0 if none)
-  streak?: number; // optional streak count for informational display
+  streak?: StreakData; // Full streak data for display
+  progressUnit: 'minutes' | 'count'; // for UI display logic
 }
 
 // History analytics types
 export interface TaskHistoryStats {
   taskId: string;
-  totalMinutes: number;
-  avgMinutesPerDay: number;
+  totalMinutes: number; // for TIME tasks
+  totalCount?: number; // for HABIT tasks
+  avgMinutesPerDay: number; // for TIME tasks
+  avgCountPerDay?: number; // for HABIT tasks
   quotaHitRate: number; // percentage 0-100
   avgOverflow: number; // average overflow beyond quota
   longestStreak: number; // consecutive days/weeks hitting quota
@@ -94,4 +112,14 @@ export interface TimerState {
 export interface DateRange {
   start: string; // YYYY-MM-DD
   end: string; // YYYY-MM-DD
+}
+
+// Onboarding types
+export type OnboardingStep = 'welcome' | 'task_creation' | 'first_log' | 'success' | 'complete';
+
+export interface TaskPreset {
+  name: string;
+  quota: number;
+  quotaType: QuotaType;
+  icon: string;
 }

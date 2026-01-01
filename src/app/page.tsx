@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTaskStore } from '@/stores/taskStore';
 import { useTimerStore } from '@/stores/timerStore';
 import { TaskCard } from '@/components/task/TaskCard';
+import { TaskCardSkeletonList } from '@/components/task/TaskCardSkeleton';
+import { QuotaConfetti } from '@/components/celebrations/QuotaConfetti';
+import { WeeklyOverview } from '@/components/home/WeeklyOverview';
+import { QuickAddTaskDialog } from '@/components/home/QuickAddTaskDialog';
 import { Button } from '@/components/ui/button';
 import {
   formatDateDisplay,
@@ -14,6 +18,9 @@ import {
   getDaysFromNow,
   isToday,
 } from '@/utils/date';
+import { getGreeting } from '@/utils/greetings';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { toast } from '@/components/ui/Toast';
 import styles from './page.module.css';
 
 export default function TodayPage() {
@@ -22,18 +29,43 @@ export default function TodayPage() {
     selectedDate,
     setSelectedDate,
     getAllTaskProgress,
+    getTaskProgress,
     addLog,
     undoLastLog,
     logs,
     isHydrated,
+    settings,
   } = useTaskStore();
 
   const { startTimer } = useTimerStore();
 
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationTaskName, setCelebrationTaskName] = useState('');
+
+  // Quick-add dialog state
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  // Track which tasks have already celebrated (to prevent duplicate celebrations)
+  const celebratedTasksRef = useRef<Set<string>>(new Set());
+
   // Get task progress for selected date
   const taskProgress = useMemo(() => {
     return getAllTaskProgress(selectedDate);
-  }, [getAllTaskProgress, selectedDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getAllTaskProgress, selectedDate, logs]);
+
+  // Get greeting based on current progress (must be before any conditional returns)
+  const isTodaySelected = isToday(selectedDate);
+  const greeting = useMemo(() => {
+    if (!isTodaySelected) return null;
+    return getGreeting(taskProgress);
+  }, [taskProgress, isTodaySelected]);
+
+  // Dismiss celebration callback
+  const handleDismissCelebration = useCallback(() => {
+    setShowCelebration(false);
+  }, []);
 
   // Check if a task has recent logs (within 10 minutes) for undo
   const canUndoTask = (taskId: string): boolean => {
@@ -61,8 +93,34 @@ export default function TodayPage() {
   };
 
   // Handlers
-  const handleQuickAdd = (taskId: string, minutes: number) => {
-    addLog(taskId, minutes, 'QUICK_ADD', selectedDate);
+  const handleQuickAdd = (taskId: string, amount: number, taskName: string, isHabit: boolean) => {
+    // Get progress BEFORE adding the log to check if this will complete the quota
+    const progressBefore = getTaskProgress(taskId, selectedDate);
+    const wasDoneBefore = progressBefore?.isDone ?? false;
+
+    if (isHabit) {
+      addLog(taskId, 0, 'QUICK_ADD', selectedDate, amount);
+      toast.success(`Added ${amount} to ${taskName}`);
+    } else {
+      addLog(taskId, amount, 'QUICK_ADD', selectedDate);
+      toast.success(`Added ${amount}m to ${taskName}`);
+    }
+
+    // Check if quota was just completed (wasn't done before, would be done after)
+    // We need to get the progress again after the log was added
+    const progressAfter = getTaskProgress(taskId, selectedDate);
+    const isDoneNow = progressAfter?.isDone ?? false;
+
+    // Trigger celebration if:
+    // 1. Task wasn't done before
+    // 2. Task is done now
+    // 3. We haven't already celebrated this task today
+    const celebrationKey = `${taskId}-${selectedDate}`;
+    if (!wasDoneBefore && isDoneNow && !celebratedTasksRef.current.has(celebrationKey)) {
+      celebratedTasksRef.current.add(celebrationKey);
+      setCelebrationTaskName(taskName);
+      setShowCelebration(true);
+    }
   };
 
   const handleStartTimer = (
@@ -78,19 +136,55 @@ export default function TodayPage() {
     return undoLastLog(taskId, selectedDate);
   };
 
-  // Show loading state while hydrating
+  // Keyboard shortcuts (after handlers are defined)
+  useKeyboardShortcuts({
+    onNewTask: () => setShowQuickAdd(true),
+    onQuickAddToTask: (taskIndex) => {
+      if (taskProgress[taskIndex]) {
+        const tp = taskProgress[taskIndex];
+        const isHabit = tp.task.task_type === 'HABIT';
+        handleQuickAdd(tp.task.id, isHabit ? 1 : 5, tp.task.name, isHabit);
+      }
+    },
+  });
+
+  // Show skeleton state while hydrating
   if (!isHydrated) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading...</div>
+        <header className={styles.header}>
+          <div className={styles.dateNav}>
+            <Button variant="ghost" size="icon" disabled>
+              <ChevronLeft size={20} />
+            </Button>
+            <div className={styles.dateButton}>
+              <span className={styles.dateText}>Loading...</span>
+            </div>
+            <Button variant="ghost" size="icon" disabled>
+              <ChevronRight size={20} />
+            </Button>
+          </div>
+          <Button variant="default" size="sm" disabled>
+            <Plus size={18} />
+            Add Task
+          </Button>
+        </header>
+        <div className={styles.taskList}>
+          <TaskCardSkeletonList count={3} />
+        </div>
       </div>
     );
   }
 
-  const isTodaySelected = isToday(selectedDate);
-
   return (
     <div className={styles.container}>
+      {/* Greeting */}
+      {greeting && (
+        <div className={styles.greeting}>
+          <p className={styles.greetingText}>{greeting}</p>
+        </div>
+      )}
+
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.dateNav}>
@@ -126,12 +220,15 @@ export default function TodayPage() {
         <Button
           variant="default"
           size="sm"
-          onClick={() => router.push('/settings?new=true')}
+          onClick={() => setShowQuickAdd(true)}
         >
           <Plus size={18} />
           Add Task
         </Button>
       </header>
+
+      {/* Weekly Overview */}
+      <WeeklyOverview />
 
       {/* Task List */}
       <div className={styles.taskList}>
@@ -147,7 +244,7 @@ export default function TodayPage() {
             <TaskCard
               key={tp.task.id}
               taskProgress={tp}
-              onQuickAdd={(minutes) => handleQuickAdd(tp.task.id, minutes)}
+              onQuickAdd={(amount) => handleQuickAdd(tp.task.id, amount, tp.task.name, tp.task.task_type === 'HABIT')}
               onStartTimer={() =>
                 handleStartTimer(
                   tp.task.id,
@@ -161,6 +258,21 @@ export default function TodayPage() {
           ))
         )}
       </div>
+
+      {/* Quota Completion Celebration */}
+      <QuotaConfetti
+        isVisible={showCelebration}
+        taskName={celebrationTaskName}
+        onDismiss={handleDismissCelebration}
+        soundEnabled={settings.soundEnabled}
+        vibrationEnabled={settings.vibrationEnabled}
+      />
+
+      {/* Quick Add Task Dialog */}
+      <QuickAddTaskDialog
+        isOpen={showQuickAdd}
+        onClose={() => setShowQuickAdd(false)}
+      />
     </div>
   );
 }

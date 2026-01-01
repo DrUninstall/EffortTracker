@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { CalendarDays, Timer, BarChart3, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import styles from './Navigation.module.css';
@@ -31,7 +32,18 @@ export function Navigation() {
               className={cn(styles.mobileNavItem, isActive && styles.active)}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon size={24} />
+              {isActive && (
+                <motion.div
+                  layoutId="mobileActiveIndicator"
+                  className={styles.mobileActiveIndicator}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 500,
+                    damping: 35,
+                  }}
+                />
+              )}
+              <Icon size={24} className={styles.navIcon} />
               <span className={styles.mobileNavLabel}>{item.label}</span>
             </Link>
           );
@@ -54,7 +66,18 @@ export function Navigation() {
                 className={cn(styles.sidebarNavItem, isActive && styles.active)}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <Icon size={20} />
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebarActiveIndicator"
+                    className={styles.sidebarActiveIndicator}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 500,
+                      damping: 35,
+                    }}
+                  />
+                )}
+                <Icon size={20} className={styles.navIcon} />
                 <span>{item.label}</span>
               </Link>
             );

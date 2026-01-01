@@ -1,0 +1,116 @@
+.container {
+  position: fixed;
+  bottom: 5.5rem; /* Above mobile nav */
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 0 var(--space-4);
+  pointer-events: none;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--card);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--stroke-weak), var(--elevation-overlay);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.indicator {
+  flex-shrink: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.taskName {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phase {
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.timer {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.expandIcon {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+.stopButton {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-fast) var(--ease-out-cubic);
+}
+
+.stopButton:hover {
+  background: var(--destructive-hover);
+}
+
+.stopButton:focus-visible {
+  box-shadow: var(--stroke-focus);
+}
+
+/* Desktop: position differently */
+@media (min-width: 768px) {
+  .container {
+    bottom: var(--space-6);
+    left: 16rem; /* Account for sidebar */
+    padding: 0 var(--space-8);
+  }
+
+  .bar {
+    max-width: 32rem;
+  }
+}

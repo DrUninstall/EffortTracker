@@ -12,9 +12,12 @@ import {
   Download,
   Upload,
   ChevronRight,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { useTaskStore, selectActiveTasks, selectArchivedTasks } from '@/stores/taskStore';
-import { Task, Priority, QuotaType, PomodoroDefaults } from '@/types';
+import { Task, Priority, QuotaType, TaskType, PomodoroDefaults } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +37,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { toast } from '@/components/ui/Toast';
 import styles from './page.module.css';
 
 const DEFAULT_POMODORO: PomodoroDefaults = {
@@ -50,7 +54,7 @@ const PRIORITY_LABELS: Record<Priority, string> = {
 };
 
 const TASK_COLORS = [
-  { value: '', label: 'Default' },
+  { value: 'default', label: 'Default' },
   { value: '#ef4444', label: 'Red' },
   { value: '#f97316', label: 'Orange' },
   { value: '#eab308', label: 'Yellow' },
@@ -79,11 +83,13 @@ export default function SettingsPage() {
   const router = useRouter();
   const {
     tasks,
+    settings,
     addTask,
     updateTask,
     deleteTask,
     archiveTask,
     unarchiveTask,
+    updateSettings,
     exportData,
     importData,
     isHydrated,
@@ -101,23 +107,29 @@ export default function SettingsPage() {
   // Task form state
   const [formName, setFormName] = useState('');
   const [formPriority, setFormPriority] = useState<Priority>('IMPORTANT');
+  const [formTaskType, setFormTaskType] = useState<TaskType>('TIME');
   const [formQuotaType, setFormQuotaType] = useState<QuotaType>('DAILY');
   const [formDailyQuota, setFormDailyQuota] = useState(30);
   const [formWeeklyQuota, setFormWeeklyQuota] = useState(120);
+  const [formHabitQuota, setFormHabitQuota] = useState(1);
+  const [formHabitUnit, setFormHabitUnit] = useState('');
   const [formWeeklyDaysTarget, setFormWeeklyDaysTarget] = useState<number | undefined>();
   const [formAllowCarryover, setFormAllowCarryover] = useState(false);
-  const [formColor, setFormColor] = useState('');
+  const [formColor, setFormColor] = useState('default');
   const [formPomodoro, setFormPomodoro] = useState<PomodoroDefaults>(DEFAULT_POMODORO);
 
   const resetForm = () => {
     setFormName('');
     setFormPriority('IMPORTANT');
+    setFormTaskType('TIME');
     setFormQuotaType('DAILY');
     setFormDailyQuota(30);
     setFormWeeklyQuota(120);
+    setFormHabitQuota(1);
+    setFormHabitUnit('');
     setFormWeeklyDaysTarget(undefined);
     setFormAllowCarryover(false);
-    setFormColor('');
+    setFormColor('default');
     setFormPomodoro(DEFAULT_POMODORO);
     setEditingTask(null);
   };
@@ -131,12 +143,15 @@ export default function SettingsPage() {
     setEditingTask(task);
     setFormName(task.name);
     setFormPriority(task.priority);
+    setFormTaskType(task.task_type || 'TIME');
     setFormQuotaType(task.quota_type);
     setFormDailyQuota(task.daily_quota_minutes || 30);
     setFormWeeklyQuota(task.weekly_quota_minutes || 120);
+    setFormHabitQuota(task.habit_quota_count || 1);
+    setFormHabitUnit(task.habit_unit || '');
     setFormWeeklyDaysTarget(task.weekly_days_target);
     setFormAllowCarryover(task.allow_carryover);
-    setFormColor(task.color || '');
+    setFormColor(task.color || 'default');
     setFormPomodoro(task.pomodoro_defaults || DEFAULT_POMODORO);
     setShowTaskDialog(true);
   };
@@ -144,15 +159,23 @@ export default function SettingsPage() {
   const handleSaveTask = () => {
     if (!formName.trim()) return;
 
+    const isHabit = formTaskType === 'HABIT';
+
     const taskData = {
       name: formName.trim(),
       priority: formPriority,
+      task_type: formTaskType,
       quota_type: formQuotaType,
-      daily_quota_minutes: formQuotaType === 'DAILY' ? formDailyQuota : undefined,
-      weekly_quota_minutes: formQuotaType === 'WEEKLY' ? formWeeklyQuota : undefined,
-      weekly_days_target: formQuotaType === 'WEEKLY' ? formWeeklyDaysTarget : undefined,
-      allow_carryover: formQuotaType === 'DAILY' ? formAllowCarryover : false,
-      color: formColor || undefined,
+      // Time-based fields
+      daily_quota_minutes: !isHabit && formQuotaType === 'DAILY' ? formDailyQuota : undefined,
+      weekly_quota_minutes: !isHabit && formQuotaType === 'WEEKLY' ? formWeeklyQuota : undefined,
+      weekly_days_target: !isHabit && formQuotaType === 'WEEKLY' ? formWeeklyDaysTarget : undefined,
+      // Habit-based fields
+      habit_quota_count: isHabit ? formHabitQuota : undefined,
+      habit_unit: isHabit && formHabitUnit.trim() ? formHabitUnit.trim() : undefined,
+      // Common fields
+      allow_carryover: !isHabit && formQuotaType === 'DAILY' ? formAllowCarryover : false,
+      color: formColor === 'default' ? undefined : formColor,
       pomodoro_defaults: formPomodoro,
       is_archived: editingTask?.is_archived || false,
     };
@@ -210,12 +233,12 @@ export default function SettingsPage() {
         const data = JSON.parse(text);
         if (data.version && data.tasks && data.logs) {
           importData(data);
-          alert('Data imported successfully!');
+          toast.success('Data imported successfully!');
         } else {
-          alert('Invalid backup file format');
+          toast.info('Invalid backup file format');
         }
       } catch {
-        alert('Failed to import data. Please check the file format.');
+        toast.info('Failed to import data. Please check the file format.');
       }
     };
     input.click();
@@ -283,10 +306,12 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <div className={styles.taskMeta}>
-                    {task.quota_type === 'DAILY'
-                      ? `${task.daily_quota_minutes}m/day`
-                      : `${task.weekly_quota_minutes}m/week`}
-                    {task.allow_carryover && ' • Carryover'}
+                    {task.task_type === 'HABIT'
+                      ? `${task.habit_quota_count} ${task.habit_unit || 'times'}/${task.quota_type === 'DAILY' ? 'day' : 'week'}`
+                      : task.quota_type === 'DAILY'
+                        ? `${task.daily_quota_minutes}m/day`
+                        : `${task.weekly_quota_minutes}m/week`}
+                    {task.allow_carryover && task.task_type === 'TIME' && ' • Carryover'}
                   </div>
                 </div>
                 <div className={styles.taskActions}>
@@ -369,6 +394,47 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* Appearance Section */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Appearance</h2>
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              {settings.theme === 'light' ? (
+                <Sun size={16} />
+              ) : settings.theme === 'dark' ? (
+                <Moon size={16} />
+              ) : (
+                <Monitor size={16} />
+              )}
+              <span className={styles.taskName}>Theme</span>
+            </div>
+            <div className={styles.taskMeta}>
+              {settings.theme === 'system'
+                ? 'Follows your device settings'
+                : settings.theme === 'light'
+                ? 'Always use light mode'
+                : 'Always use dark mode'}
+            </div>
+          </div>
+          <Select
+            value={settings.theme}
+            onValueChange={(value) =>
+              updateSettings({ theme: value as 'light' | 'dark' | 'system' })
+            }
+          >
+            <SelectTrigger style={{ width: '8rem' }}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">System</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </section>
+
       {/* Data Section */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Data</h2>
@@ -434,7 +500,7 @@ export default function SettingsPage() {
                     {TASK_COLORS.map((color) => (
                       <SelectItem key={color.value} value={color.value}>
                         <span className={styles.colorOption}>
-                          {color.value && (
+                          {color.value !== 'default' && (
                             <span
                               className={styles.colorDot}
                               style={{ backgroundColor: color.value }}
@@ -450,7 +516,20 @@ export default function SettingsPage() {
             </div>
 
             <div className={styles.formField}>
-              <Label htmlFor="quotaType">Quota Type</Label>
+              <Label htmlFor="taskType">Task Type</Label>
+              <Select value={formTaskType} onValueChange={(v) => setFormTaskType(v as TaskType)}>
+                <SelectTrigger id="taskType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TIME">Time-based</SelectItem>
+                  <SelectItem value="HABIT">Habit / Counter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className={styles.formField}>
+              <Label htmlFor="quotaType">Quota Period</Label>
               <Select value={formQuotaType} onValueChange={(v) => setFormQuotaType(v as QuotaType)}>
                 <SelectTrigger id="quotaType">
                   <SelectValue />
@@ -462,7 +541,35 @@ export default function SettingsPage() {
               </Select>
             </div>
 
-            {formQuotaType === 'DAILY' ? (
+            {formTaskType === 'HABIT' ? (
+              /* Habit fields */
+              <>
+                <div className={styles.formRow}>
+                  <div className={styles.formField}>
+                    <Label htmlFor="habitQuota">Target Count</Label>
+                    <Input
+                      id="habitQuota"
+                      type="number"
+                      min={1}
+                      value={formHabitQuota}
+                      onChange={(e) => setFormHabitQuota(parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+
+                  <div className={styles.formField}>
+                    <Label htmlFor="habitUnit">Unit (optional)</Label>
+                    <Input
+                      id="habitUnit"
+                      type="text"
+                      value={formHabitUnit}
+                      onChange={(e) => setFormHabitUnit(e.target.value)}
+                      placeholder="e.g., glasses, reps"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : formQuotaType === 'DAILY' ? (
+              /* Daily time fields */
               <>
                 <div className={styles.formField}>
                   <Label htmlFor="dailyQuota">Daily Quota (minutes)</Label>
@@ -485,6 +592,7 @@ export default function SettingsPage() {
                 </div>
               </>
             ) : (
+              /* Weekly time fields */
               <>
                 <div className={styles.formField}>
                   <Label htmlFor="weeklyQuota">Weekly Quota (minutes)</Label>
@@ -516,7 +624,8 @@ export default function SettingsPage() {
               </>
             )}
 
-            {/* Pomodoro Settings */}
+            {/* Pomodoro Settings - only for time tasks */}
+            {formTaskType === 'TIME' && (
             <details className={styles.pomodoroSection}>
               <summary className={styles.pomodoroToggle}>
                 Pomodoro Settings
@@ -584,6 +693,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </details>
+            )}
           </div>
 
           <DialogFooter>

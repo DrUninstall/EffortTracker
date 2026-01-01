@@ -1,23 +1,28 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Play, Undo2 } from 'lucide-react';
-import { TaskProgress, LogSource } from '@/types';
+import { Check, Play, Undo2, Plus, Flame, Snowflake } from 'lucide-react';
+import { TaskProgress } from '@/types';
 import { formatMinutes } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { useTimerStore } from '@/stores/timerStore';
+import { useTaskStore } from '@/stores/taskStore';
+import { triggerHaptic } from '@/lib/haptics';
+import { playSound } from '@/lib/sounds';
 import styles from './TaskCard.module.css';
 
 interface TaskCardProps {
   taskProgress: TaskProgress;
-  onQuickAdd: (minutes: number) => void;
+  onQuickAdd: (amount: number) => void;
   onStartTimer: () => void;
   onUndo: () => boolean;
   canUndo: boolean;
 }
 
 const QUICK_ADD_OPTIONS = [5, 10, 15, 25];
+const HABIT_ADD_OPTIONS = [1, 2, 3];
 
 const PRIORITY_LABELS = {
   CORE: 'Core',
@@ -31,6 +36,14 @@ const PRIORITY_COLORS = {
   OPTIONAL: 'var(--priority-optional)',
 };
 
+// Determine streak level for styling
+function getStreakLevel(streakDays: number): 'warm' | 'hot' | 'fire' | null {
+  if (streakDays < 3) return null;
+  if (streakDays < 7) return 'warm';
+  if (streakDays < 14) return 'hot';
+  return 'fire';
+}
+
 export function TaskCard({
   taskProgress,
   onQuickAdd,
@@ -38,14 +51,79 @@ export function TaskCard({
   onUndo,
   canUndo,
 }: TaskCardProps) {
-  const { task, progress, effectiveQuota, remaining, isDone, carryoverApplied } =
+  const { task, progress, effectiveQuota, remaining, isDone, carryoverApplied, progressUnit, streak } =
     taskProgress;
 
+  // Compute streak display info
+  const streakInfo = useMemo(() => {
+    if (!streak || streak.currentStreak < 3) return null;
+
+    const level = getStreakLevel(streak.currentStreak);
+    const recentlyUsedFreeze = streak.freezeUsedDates.length > 0 &&
+      streak.freezeUsedDates[streak.freezeUsedDates.length - 1] >=
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    return {
+      count: streak.currentStreak,
+      level,
+      hasFreeze: recentlyUsedFreeze,
+      freezesAvailable: streak.freezesAvailable,
+    };
+  }, [streak]);
+
+  // Get user settings for haptics/sounds
+  const { settings } = useTaskStore();
+
+  // Check if this is a habit task
+  const isHabit = task.task_type === 'HABIT';
+
+  // Check if there's a paused timer for this task (only relevant for time tasks)
+  const { taskId: activeTaskId, pausedElapsed, isRunning } = useTimerStore();
+  const hasPausedTimer = !isHabit && activeTaskId === task.id && pausedElapsed > 0 && !isRunning;
+
+  // Handle quick-add with haptic and sound feedback
+  const handleQuickAdd = (amount: number) => {
+    // Trigger haptic feedback
+    if (settings.vibrationEnabled) {
+      triggerHaptic('light');
+    }
+    // Trigger sound feedback
+    if (settings.soundEnabled) {
+      playSound('log');
+    }
+    // Call the actual handler
+    onQuickAdd(amount);
+  };
+
+  // Handle undo with feedback
+  const handleUndo = () => {
+    if (settings.vibrationEnabled) {
+      triggerHaptic('undo');
+    }
+    onUndo();
+  };
+
+  // Handle start timer with feedback
+  const handleStartTimer = () => {
+    if (settings.vibrationEnabled) {
+      triggerHaptic('medium');
+    }
+    onStartTimer();
+  };
+
   const progressPercent = Math.min(100, (progress / effectiveQuota) * 100);
-  const quotaLabel =
-    task.quota_type === 'DAILY'
+
+  // Build quota label based on task type
+  const quotaLabel = isHabit
+    ? `${task.habit_quota_count} ${task.habit_unit || 'times'}/${task.quota_type === 'DAILY' ? 'day' : 'week'}`
+    : task.quota_type === 'DAILY'
       ? `${task.daily_quota_minutes}m/day`
       : `${task.weekly_quota_minutes}m/week`;
+
+  // Format progress display based on task type
+  const formatProgress = (value: number) => {
+    return isHabit ? value.toString() : formatMinutes(value);
+  };
 
   return (
     <motion.div
@@ -68,6 +146,42 @@ export function TaskCard({
             title={PRIORITY_LABELS[task.priority]}
           />
           <h3 className={styles.name}>{task.name}</h3>
+
+          {/* Streak Badge */}
+          <AnimatePresence>
+            {streakInfo && streakInfo.level && (
+              <motion.div
+                className={styles.streakBadge}
+                data-level={streakInfo.level}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                title={`${streakInfo.count} day streak${streakInfo.freezesAvailable > 0 ? ` (${streakInfo.freezesAvailable} freeze${streakInfo.freezesAvailable > 1 ? 's' : ''} available)` : ''}`}
+              >
+                <Flame size={12} />
+                <span>{streakInfo.count}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Freeze Used Indicator */}
+          <AnimatePresence>
+            {streakInfo?.hasFreeze && (
+              <motion.div
+                className={styles.freezeIndicator}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
+                title="Streak saved by a freeze!"
+              >
+                <Snowflake size={10} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Done Indicator */}
           <AnimatePresence>
             {isDone && (
               <motion.div
@@ -98,15 +212,18 @@ export function TaskCard({
           value={progressPercent}
           className={styles.progressBar}
           indicatorClassName={isDone ? styles.progressComplete : undefined}
-          aria-label={`Progress: ${progress} of ${effectiveQuota} minutes`}
+          aria-label={`Progress: ${progress} of ${effectiveQuota} ${isHabit ? 'completions' : 'minutes'}`}
         />
         <div className={styles.progressStats}>
-          <span className={styles.progressValue}>{formatMinutes(progress)}</span>
+          <span className={styles.progressValue}>{formatProgress(progress)}</span>
           <span className={styles.progressDivider}>/</span>
-          <span className={styles.quotaValue}>{formatMinutes(effectiveQuota)}</span>
+          <span className={styles.quotaValue}>{formatProgress(effectiveQuota)}</span>
+          {isHabit && task.habit_unit && (
+            <span className={styles.habitUnit}>{task.habit_unit}</span>
+          )}
           {!isDone && remaining > 0 && (
             <span className={styles.remaining}>
-              ({formatMinutes(remaining)} left)
+              ({formatProgress(remaining)} left)
             </span>
           )}
         </div>
@@ -114,41 +231,70 @@ export function TaskCard({
 
       {/* Actions */}
       <div className={styles.actions}>
-        <div className={styles.quickAddButtons}>
-          {QUICK_ADD_OPTIONS.map((minutes) => (
+        {isHabit ? (
+          /* Habit Actions - Big +1 button */
+          <div className={styles.habitActions}>
             <Button
-              key={minutes}
-              variant="outline"
-              size="sm"
-              className={styles.quickAddButton}
-              onClick={() => onQuickAdd(minutes)}
+              variant="default"
+              size="lg"
+              className={styles.habitAddButton}
+              onClick={() => handleQuickAdd(1)}
+              aria-label="Add 1 completion"
             >
-              +{minutes}
+              <Plus size={28} strokeWidth={2.5} />
             </Button>
-          ))}
-        </div>
-        <div className={styles.mainActions}>
-          {canUndo && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className={styles.undoButton}
-              onClick={onUndo}
-              title="Undo last log"
-            >
-              <Undo2 size={18} />
-            </Button>
-          )}
-          <Button
-            variant="default"
-            size="sm"
-            className={styles.startButton}
-            onClick={onStartTimer}
-          >
-            <Play size={16} />
-            Start
-          </Button>
-        </div>
+            {canUndo && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={styles.undoButton}
+                onClick={handleUndo}
+                title="Undo last log"
+              >
+                <Undo2 size={18} />
+              </Button>
+            )}
+          </div>
+        ) : (
+          /* Time-based Actions - Quick add + Timer */
+          <>
+            <div className={styles.quickAddButtons}>
+              {QUICK_ADD_OPTIONS.map((minutes) => (
+                <Button
+                  key={minutes}
+                  variant="outline"
+                  size="sm"
+                  className={styles.quickAddButton}
+                  onClick={() => handleQuickAdd(minutes)}
+                >
+                  +{minutes}
+                </Button>
+              ))}
+            </div>
+            <div className={styles.mainActions}>
+              {canUndo && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={styles.undoButton}
+                  onClick={handleUndo}
+                  title="Undo last log"
+                >
+                  <Undo2 size={18} />
+                </Button>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                className={styles.startButton}
+                onClick={handleStartTimer}
+              >
+                <Play size={16} />
+                {hasPausedTimer ? 'Resume' : 'Start'}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );

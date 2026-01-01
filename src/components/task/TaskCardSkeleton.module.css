@@ -1,0 +1,132 @@
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--muted-foreground) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+  opacity: 0.1;
+}
+
+.card {
+  background-color: var(--card);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--stroke-weak);
+}
+
+/* Header */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.priorityDot {
+  composes: skeleton;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.name {
+  composes: skeleton;
+  height: 1rem;
+  flex: 1;
+  max-width: 60%;
+}
+
+.badge {
+  composes: skeleton;
+  width: 4rem;
+  height: 1rem;
+}
+
+.quota {
+  composes: skeleton;
+  width: 6rem;
+  height: 0.8rem;
+  margin-top: var(--space-1);
+}
+
+/* Progress Section */
+.progressSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.progressBar {
+  composes: skeleton;
+  height: 0.625rem;
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+.progressStats {
+  composes: skeleton;
+  height: 0.875rem;
+  width: 40%;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.buttonGroup {
+  display: flex;
+  gap: var(--space-1-5);
+}
+
+.button {
+  composes: skeleton;
+  width: 2.75rem;
+  height: 2rem;
+}
+
+.mainButton {
+  composes: skeleton;
+  width: 5rem;
+  height: 2rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .buttonGroup {
+    justify-content: space-between;
+  }
+}

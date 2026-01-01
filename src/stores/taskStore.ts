@@ -30,8 +30,8 @@ const DEFAULT_POMODORO = {
 const DEFAULT_SETTINGS: AppSettings = {
   weekStartDay: 1, // Monday
   theme: 'system',
-  soundEnabled: false,
-  vibrationEnabled: false,
+  soundEnabled: true, // Sounds ON by default
+  vibrationEnabled: true, // Haptics ON by default
 };
 
 // Demo tasks for first run
@@ -40,6 +40,7 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     name: 'EA Study',
     priority: 'CORE',
     quota_type: 'DAILY',
+    task_type: 'TIME',
     daily_quota_minutes: 240,
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
@@ -49,6 +50,7 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     name: 'Reading',
     priority: 'IMPORTANT',
     quota_type: 'DAILY',
+    task_type: 'TIME',
     daily_quota_minutes: 10,
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
@@ -58,7 +60,19 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     name: 'Workout',
     priority: 'IMPORTANT',
     quota_type: 'DAILY',
+    task_type: 'TIME',
     daily_quota_minutes: 60,
+    allow_carryover: false,
+    pomodoro_defaults: DEFAULT_POMODORO,
+    is_archived: false,
+  },
+  {
+    name: 'Water Intake',
+    priority: 'IMPORTANT',
+    quota_type: 'DAILY',
+    task_type: 'HABIT',
+    habit_quota_count: 8,
+    habit_unit: 'glasses',
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
@@ -80,7 +94,7 @@ interface TaskState {
   unarchiveTask: (id: string) => void;
 
   // Logging
-  addLog: (taskId: string, minutes: number, source: LogSource, date?: string) => string;
+  addLog: (taskId: string, minutes: number, source: LogSource, date?: string, count?: number) => string;
   undoLastLog: (taskId: string, date: string) => boolean;
 
   // Date selection
@@ -156,13 +170,17 @@ export const useTaskStore = create<TaskState>()(
         get().updateTask(id, { is_archived: false });
       },
 
-      addLog: (taskId, minutes, source, date) => {
+      addLog: (taskId, minutes, source, date, count) => {
         const id = generateUUID();
+        const task = get().tasks.find((t) => t.id === taskId);
+        const isHabit = task?.task_type === 'HABIT';
+
         const log: IncrementLog = {
           id,
           task_id: taskId,
           date: date || get().selectedDate,
-          minutes: Math.round(Math.max(0, minutes)), // Ensure positive integer
+          minutes: isHabit ? 0 : Math.round(Math.max(0, minutes)), // 0 for habits
+          count: isHabit ? (count || 1) : undefined, // count for habits
           source,
           created_at: Date.now(),
         };
@@ -211,10 +229,16 @@ export const useTaskStore = create<TaskState>()(
 
         if (!task) return null;
 
+        const isHabit = task.task_type === 'HABIT';
+
         if (task.quota_type === 'DAILY') {
-          return computeDailyProgress(task, logs, targetDate);
+          return isHabit
+            ? computeDailyHabitProgress(task, logs, targetDate)
+            : computeDailyProgress(task, logs, targetDate);
         } else {
-          return computeWeeklyProgress(task, logs, targetDate);
+          return isHabit
+            ? computeWeeklyHabitProgress(task, logs, targetDate)
+            : computeWeeklyProgress(task, logs, targetDate);
         }
       },
 
@@ -252,7 +276,7 @@ export const useTaskStore = create<TaskState>()(
       exportData: () => {
         const { tasks, logs, settings } = get();
         return {
-          version: '1.0.0',
+          version: '1.1.0', // Bumped for habit support
           exportedAt: Date.now(),
           tasks,
           logs,
@@ -261,11 +285,16 @@ export const useTaskStore = create<TaskState>()(
       },
 
       importData: (data) => {
-        if (data.version !== '1.0.0') {
+        if (!['1.0.0', '1.1.0'].includes(data.version)) {
           console.warn('Unknown export version:', data.version);
         }
+        // Normalize imported tasks - ensure task_type exists
+        const normalizedTasks = data.tasks.map((task: Task) => ({
+          ...task,
+          task_type: task.task_type || 'TIME',
+        }));
         set({
-          tasks: data.tasks,
+          tasks: normalizedTasks,
           logs: data.logs,
           settings: { ...DEFAULT_SETTINGS, ...data.settings },
         });
@@ -285,13 +314,17 @@ export const useTaskStore = create<TaskState>()(
       storage: createJSONStorage(() => zustandStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.setHydrated(true);
-          // Seed demo tasks if no tasks exist
-          if (state.tasks.length === 0) {
-            DEMO_TASKS.forEach((taskData) => {
-              state.addTask(taskData);
-            });
+          // Normalize tasks - ensure task_type exists for backward compatibility
+          const normalizedTasks = state.tasks.map((task) => ({
+            ...task,
+            task_type: task.task_type || 'TIME',
+          }));
+          if (normalizedTasks.some((t, i) => t.task_type !== state.tasks[i].task_type)) {
+            // Only update if there were changes
+            state.tasks = normalizedTasks as Task[];
           }
+
+          state.setHydrated(true);
           // Update selected date to today on rehydration
           state.setSelectedDate(getToday());
         }
@@ -300,7 +333,7 @@ export const useTaskStore = create<TaskState>()(
   )
 );
 
-// Helper function to compute daily task progress
+// Helper function to compute daily TIME task progress
 function computeDailyProgress(
   task: Task,
   logs: IncrementLog[],
@@ -339,10 +372,11 @@ function computeDailyProgress(
     remaining,
     isDone,
     carryoverApplied,
+    progressUnit: 'minutes',
   };
 }
 
-// Helper function to compute weekly task progress
+// Helper function to compute weekly TIME task progress
 function computeWeeklyProgress(
   task: Task,
   logs: IncrementLog[],
@@ -368,6 +402,65 @@ function computeWeeklyProgress(
     remaining,
     isDone,
     carryoverApplied: 0, // No carryover for weekly tasks
+    progressUnit: 'minutes',
+  };
+}
+
+// Helper function to compute daily HABIT task progress
+function computeDailyHabitProgress(
+  task: Task,
+  logs: IncrementLog[],
+  date: string
+): TaskProgress {
+  const quota = task.habit_quota_count || 0;
+
+  // Get today's completions
+  const todayLogs = logs.filter(
+    (l) => l.task_id === task.id && l.date === date
+  );
+  const progress = todayLogs.reduce((sum, l) => sum + (l.count || 0), 0);
+
+  const remaining = Math.max(0, quota - progress);
+  const isDone = progress >= quota;
+
+  return {
+    task,
+    progress,
+    effectiveQuota: quota,
+    remaining,
+    isDone,
+    carryoverApplied: 0, // Habits never carry over
+    progressUnit: 'count',
+  };
+}
+
+// Helper function to compute weekly HABIT task progress
+function computeWeeklyHabitProgress(
+  task: Task,
+  logs: IncrementLog[],
+  date: string
+): TaskProgress {
+  const quota = task.habit_quota_count || 0;
+  const { start, end } = getISOWeekRange(date);
+
+  // Get all logs in this week
+  const weekLogs = logs.filter(
+    (l) =>
+      l.task_id === task.id && l.date >= start && l.date <= end
+  );
+  const progress = weekLogs.reduce((sum, l) => sum + (l.count || 0), 0);
+
+  const remaining = Math.max(0, quota - progress);
+  const isDone = progress >= quota;
+
+  return {
+    task,
+    progress,
+    effectiveQuota: quota,
+    remaining,
+    isDone,
+    carryoverApplied: 0, // Habits never carry over
+    progressUnit: 'count',
   };
 }
 

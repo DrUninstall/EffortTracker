@@ -1,0 +1,125 @@
+/*
+ * S-Tier animation: transform + opacity are compositor properties.
+ * Toast slides in/out using translateY, fades with opacity.
+ * Both run on GPU, unaffected by main thread blocking.
+ */
+
+.container {
+  position: fixed;
+  bottom: 6.5rem; /* Above floating timer bar and mobile nav */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: calc(100% - var(--space-8));
+  max-width: 24rem;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--card);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--stroke-weak), var(--elevation-overlay);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  will-change: transform, opacity;
+
+  /* Initial state - off screen */
+  opacity: 0;
+  transform: translateY(100%) scale(0.95);
+  transition: transform var(--duration-normal) var(--ease-out-quint),
+              opacity var(--duration-normal) var(--ease-out-quint);
+}
+
+.toast:active {
+  cursor: grabbing;
+}
+
+/* Mounted state - slide in */
+.toast[data-mounted='true'] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Exit animation - faster, subtler */
+.toast[data-removing='true'] {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+  transition: transform var(--duration-fast) var(--ease-out-quint),
+              opacity var(--duration-fast) var(--ease-out-quint);
+}
+
+.iconSuccess {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: var(--success);
+  color: var(--success-foreground);
+  border-radius: 50%;
+}
+
+.message {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--foreground);
+}
+
+.action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1-5) var(--space-2-5);
+  background: transparent;
+  color: var(--primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--stroke-weak);
+  transition: background-color var(--duration-fast) var(--ease-out-cubic),
+              box-shadow var(--duration-fast) var(--ease-out-cubic);
+}
+
+.action:hover {
+  background: var(--secondary);
+  box-shadow: var(--stroke-weak-hover);
+}
+
+.action:active {
+  transform: scale(0.97);
+}
+
+.action:focus-visible {
+  box-shadow: var(--stroke-focus);
+}
+
+/* Desktop positioning */
+@media (min-width: 768px) {
+  .container {
+    bottom: 2.5rem;
+    left: calc(50% + 8rem); /* Account for sidebar (16rem / 2) */
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transition: none;
+  }
+}

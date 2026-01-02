@@ -94,7 +94,7 @@ interface TaskState {
   unarchiveTask: (id: string) => void;
 
   // Logging
-  addLog: (taskId: string, minutes: number, source: LogSource, date?: string, count?: number) => string;
+  addLog: (taskId: string, minutes: number, source: LogSource, date?: string, count?: number, note?: string) => string;
   undoLastLog: (taskId: string, date: string) => boolean;
 
   // Date selection
@@ -170,7 +170,7 @@ export const useTaskStore = create<TaskState>()(
         get().updateTask(id, { is_archived: false });
       },
 
-      addLog: (taskId, minutes, source, date, count) => {
+      addLog: (taskId, minutes, source, date, count, note) => {
         const id = generateUUID();
         const task = get().tasks.find((t) => t.id === taskId);
         const isHabit = task?.task_type === 'HABIT';
@@ -183,6 +183,7 @@ export const useTaskStore = create<TaskState>()(
           count: isHabit ? (count || 1) : undefined, // count for habits
           source,
           created_at: Date.now(),
+          note: note || undefined, // optional context note
         };
         set((state) => ({ logs: [...state.logs, log] }));
         return id;

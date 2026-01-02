@@ -7,12 +7,14 @@ interface ShortcutHandlers {
   onNewTask?: () => void;
   onQuickAddToTask?: (taskIndex: number) => void;
   onShowShortcuts?: () => void;
+  onCommandPalette?: () => void;
 }
 
 /**
  * Global keyboard shortcuts hook
  *
  * Shortcuts:
+ * - Cmd/Ctrl+K: Open command palette
  * - g t: Go to Today (home)
  * - g h: Go to History
  * - g s: Go to Settings
@@ -29,13 +31,24 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}) {
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      // Ignore if user is typing in an input
+      // Ignore if user is typing in an input (except for Cmd+K)
       const target = event.target as HTMLElement;
-      if (
+      const isInInput =
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+        target.isContentEditable;
+
+      const key = event.key.toLowerCase();
+
+      // Handle Cmd/Ctrl+K for command palette (works even in inputs)
+      if ((event.metaKey || event.ctrlKey) && key === 'k') {
+        event.preventDefault();
+        handlers.onCommandPalette?.();
+        return;
+      }
+
+      // Skip other shortcuts if in input
+      if (isInInput) {
         return;
       }
 
@@ -43,8 +56,6 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}) {
       if (event.ctrlKey || event.metaKey || event.altKey) {
         return;
       }
-
-      const key = event.key.toLowerCase();
 
       // Handle "g" prefix for navigation
       if (pendingKey.current === 'g') {
@@ -133,6 +144,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}) {
  * Shortcuts reference for display
  */
 export const KEYBOARD_SHORTCUTS = [
+  { keys: ['\u2318/Ctrl', 'K'], description: 'Command palette' },
   { keys: ['g', 't'], description: 'Go to Today' },
   { keys: ['g', 'h'], description: 'Go to History' },
   { keys: ['g', 's'], description: 'Go to Settings' },

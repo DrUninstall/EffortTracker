@@ -1,7 +1,7 @@
 // Core data types for Effort Ledger
 
 export type Priority = 'CORE' | 'IMPORTANT' | 'OPTIONAL';
-export type QuotaType = 'DAILY' | 'WEEKLY';
+export type QuotaType = 'DAILY' | 'WEEKLY' | 'DAYS_PER_WEEK';
 export type TaskType = 'TIME' | 'HABIT';
 export type LogSource = 'QUICK_ADD' | 'TIMER' | 'POMODORO' | 'MANUAL';
 
@@ -38,6 +38,7 @@ export interface IncrementLog {
   count?: number; // completion count (for HABIT tasks, typically 1)
   source: LogSource;
   created_at: number; // timestamp
+  note?: string; // optional context note for understanding patterns
 }
 
 // Streak data for forgiving streak system
@@ -48,6 +49,9 @@ export interface StreakData {
   freezesAvailable: number;     // Max 2, earn 1 per 7-day streak
   freezeUsedDates: string[];    // Dates when freezes were auto-applied
   streakStartDate: string;      // When current streak began
+  // Habit strength (Loop-style exponential smoothing)
+  habitStrength: number;        // 0-100, gradual decay instead of binary reset
+  lastStrengthUpdate: string;   // YYYY-MM-DD of last strength calculation
 }
 
 // Computed types for UI
@@ -60,6 +64,10 @@ export interface TaskProgress {
   carryoverApplied: number; // how much carryover was applied (0 if none)
   streak?: StreakData; // Full streak data for display
   progressUnit: 'minutes' | 'count'; // for UI display logic
+  // Days per week tracking (when quota_type === 'DAYS_PER_WEEK')
+  daysCompletedThisWeek?: number; // How many days hit quota this week
+  daysRemainingInWeek?: number; // Days left in the week to hit target
+  weeklyDaysTarget?: number; // Target days (e.g., 3 times per week)
 }
 
 // History analytics types

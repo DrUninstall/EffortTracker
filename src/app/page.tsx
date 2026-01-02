@@ -9,7 +9,9 @@ import { TaskCard } from '@/components/task/TaskCard';
 import { TaskCardSkeletonList } from '@/components/task/TaskCardSkeleton';
 import { QuotaConfetti } from '@/components/celebrations/QuotaConfetti';
 import { WeeklyOverview } from '@/components/home/WeeklyOverview';
+import { DailyProgressRing } from '@/components/home/DailyProgressRing';
 import { QuickAddTaskDialog } from '@/components/home/QuickAddTaskDialog';
+import { CommandPalette } from '@/components/CommandPalette';
 import { Button } from '@/components/ui/button';
 import {
   formatDateDisplay,
@@ -45,6 +47,9 @@ export default function TodayPage() {
 
   // Quick-add dialog state
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  // Command palette state
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
 
   // Track which tasks have already celebrated (to prevent duplicate celebrations)
   const celebratedTasksRef = useRef<Set<string>>(new Set());
@@ -139,6 +144,7 @@ export default function TodayPage() {
   // Keyboard shortcuts (after handlers are defined)
   useKeyboardShortcuts({
     onNewTask: () => setShowQuickAdd(true),
+    onCommandPalette: () => setShowCommandPalette(true),
     onQuickAddToTask: (taskIndex) => {
       if (taskProgress[taskIndex]) {
         const tp = taskProgress[taskIndex];
@@ -227,6 +233,11 @@ export default function TodayPage() {
         </Button>
       </header>
 
+      {/* Daily Progress Ring */}
+      {isTodaySelected && taskProgress.length > 0 && (
+        <DailyProgressRing progress={taskProgress} />
+      )}
+
       {/* Weekly Overview */}
       <WeeklyOverview />
 
@@ -272,6 +283,12 @@ export default function TodayPage() {
       <QuickAddTaskDialog
         isOpen={showQuickAdd}
         onClose={() => setShowQuickAdd(false)}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
       />
     </div>
   );

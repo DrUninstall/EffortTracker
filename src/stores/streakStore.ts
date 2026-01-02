@@ -15,6 +15,12 @@ const MAX_FREEZES = 2;
 // Days of streak completion to earn a freeze
 const DAYS_PER_FREEZE = 7;
 
+// Habit strength algorithm constants (Loop-style exponential smoothing)
+const STRENGTH_COMPLETION_BONUS = 5; // Points gained when completing quota
+const STRENGTH_DECAY_RATE = 0.95; // Decay multiplier per day missed (5% decay)
+const STRENGTH_MAX = 100;
+const STRENGTH_MIN = 0;
+
 interface TaskStreakData {
   [taskId: string]: StreakData;
 }
@@ -45,7 +51,45 @@ function createDefaultStreak(): StreakData {
     freezesAvailable: 0,
     freezeUsedDates: [],
     streakStartDate: '',
+    habitStrength: 0,
+    lastStrengthUpdate: '',
   };
+}
+
+// Calculate habit strength using exponential smoothing
+// This provides a gradual decay instead of binary reset
+function computeHabitStrength(
+  currentStrength: number,
+  lastUpdate: string,
+  completed: boolean,
+  today: string
+): { strength: number; lastUpdate: string } {
+  // If no previous update, initialize
+  if (!lastUpdate) {
+    return {
+      strength: completed ? STRENGTH_COMPLETION_BONUS : STRENGTH_MIN,
+      lastUpdate: today,
+    };
+  }
+
+  // Calculate days since last update
+  const daysSinceUpdate = countDaysBetween(lastUpdate, today);
+
+  // Apply decay for each day missed
+  let strength = currentStrength;
+  for (let i = 0; i < daysSinceUpdate; i++) {
+    strength *= STRENGTH_DECAY_RATE;
+  }
+
+  // If completed today, add bonus
+  if (completed) {
+    strength = Math.min(STRENGTH_MAX, strength + STRENGTH_COMPLETION_BONUS);
+  }
+
+  // Clamp to valid range
+  strength = Math.max(STRENGTH_MIN, Math.min(STRENGTH_MAX, strength));
+
+  return { strength, lastUpdate: today };
 }
 
 // Check if a task quota was completed on a given date
@@ -91,8 +135,18 @@ function computeStreak(
   // Check if today's quota is completed
   const todayCompleted = wasQuotaCompleted(task, logs, today);
 
+  // Calculate habit strength (applies to all quota types)
+  const strengthResult = computeHabitStrength(
+    streak.habitStrength,
+    streak.lastStrengthUpdate,
+    todayCompleted,
+    today
+  );
+  streak.habitStrength = strengthResult.strength;
+  streak.lastStrengthUpdate = strengthResult.lastUpdate;
+
   // For weekly tasks, we track streak by weeks, not days
-  const isWeekly = task.quota_type === 'WEEKLY';
+  const isWeekly = task.quota_type === 'WEEKLY' || task.quota_type === 'DAYS_PER_WEEK';
 
   if (isWeekly) {
     // Weekly streak logic

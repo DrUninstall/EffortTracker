@@ -126,7 +126,7 @@ export function TaskCard({
   };
 
   return (
-    <motion.div
+    <motion.article
       className={styles.card}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -136,6 +136,7 @@ export function TaskCard({
           '--card-accent': task.color || PRIORITY_COLORS[task.priority],
         } as React.CSSProperties
       }
+      aria-label={`${task.name}: ${formatProgress(progress)} of ${formatProgress(effectiveQuota)} ${isDone ? '(complete)' : `(${formatProgress(remaining)} remaining)`}`}
     >
       {/* Header */}
       <div className={styles.header}>
@@ -296,6 +297,6 @@ export function TaskCard({
           </>
         )}
       </div>
-    </motion.div>
+    </motion.article>
   );
 }

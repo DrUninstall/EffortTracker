@@ -54,6 +54,15 @@ const MOST_DONE_GREETINGS = [
   "Solid effort! The finish line is close.",
 ];
 
+// Almost there greetings (80-99% complete on any task)
+const ALMOST_THERE_GREETINGS = [
+  "So close! Just a little more.",
+  "Almost there! You've got this.",
+  "The finish line is in sight!",
+  "Nearly done! Keep going.",
+  "Just a few more minutes!",
+];
+
 // Streak greetings
 const STREAK_GREETINGS = [
   "Your streak is on fire! Keep it up.",
@@ -99,13 +108,26 @@ export function getGreeting(progress: TaskProgress[], hour?: number): string {
   const completedCount = progress.filter(p => p.isDone).length;
   const mostDone = completedCount > progress.length / 2;
   const hasLongStreak = progress.some(p => p.streak && p.streak.currentStreak > 7);
+  const hasStrongHabit = progress.some(p => p.streak && p.streak.habitStrength > 70);
 
-  // Priority: All done > Long streak > Most done > Time of day
+  // Check for "almost there" on any task (80-99% progress)
+  const almostThereTask = progress.find(p => {
+    if (p.isDone) return false;
+    const percent = (p.progress / p.effectiveQuota) * 100;
+    return percent >= 80 && percent < 100;
+  });
+
+  // Priority: All done > Almost there > Long streak/Strong habit > Most done > Time of day
   if (allDone) {
     return getRandomItem(ALL_DONE_GREETINGS);
   }
 
-  if (hasLongStreak && Math.random() > 0.5) {
+  // Show almost there encouragement (subtle nudge)
+  if (almostThereTask && Math.random() > 0.4) {
+    return getRandomItem(ALMOST_THERE_GREETINGS);
+  }
+
+  if ((hasLongStreak || hasStrongHabit) && Math.random() > 0.5) {
     return getRandomItem(STREAK_GREETINGS);
   }
 

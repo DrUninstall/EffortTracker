@@ -18,6 +18,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Effort Ledger',
   description: 'Track intentional effort toward your quotas',
+  manifest: '/EffortTracker/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

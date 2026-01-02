@@ -1,0 +1,56 @@
+{
+  "name": "Effort Ledger",
+  "short_name": "Effort Ledger",
+  "description": "A calm productivity companion for quota-based effort tracking",
+  "start_url": "/EffortTracker/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/EffortTracker/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/EffortTracker/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Add +15m",
+      "short_name": "+15m",
+      "description": "Add 15 minutes to your most recent task",
+      "url": "/EffortTracker/?action=quickadd&minutes=15",
+      "icons": [{ "src": "/EffortTracker/icons/shortcut-add.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Start Timer",
+      "short_name": "Timer",
+      "description": "Start a focus timer session",
+      "url": "/EffortTracker/timer",
+      "icons": [{ "src": "/EffortTracker/icons/shortcut-timer.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "View History",
+      "short_name": "History",
+      "description": "View your effort history and stats",
+      "url": "/EffortTracker/history",
+      "icons": [{ "src": "/EffortTracker/icons/shortcut-history.png", "sizes": "96x96" }]
+    }
+  ],
+  "categories": ["productivity", "lifestyle"],
+  "share_target": {
+    "action": "/EffortTracker/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text"
+    }
+  }
+}

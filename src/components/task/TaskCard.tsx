@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Play, Undo2, Plus, Flame, Snowflake } from 'lucide-react';
+import { Check, Play, Undo2, Plus, Flame, Snowflake, Wand2, MessageSquare, X } from 'lucide-react';
 import { TaskProgress } from '@/types';
 import { formatMinutes } from '@/utils/date';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,11 @@ import styles from './TaskCard.module.css';
 
 interface TaskCardProps {
   taskProgress: TaskProgress;
-  onQuickAdd: (amount: number) => void;
+  onQuickAdd: (amount: number, note?: string) => void;
   onStartTimer: () => void;
   onUndo: () => boolean;
   canUndo: boolean;
+  onOpenBreakdown?: () => void;
 }
 
 const QUICK_ADD_OPTIONS = [5, 10, 15, 25];
@@ -50,6 +51,7 @@ export function TaskCard({
   onStartTimer,
   onUndo,
   canUndo,
+  onOpenBreakdown,
 }: TaskCardProps) {
   const { task, progress, effectiveQuota, remaining, isDone, carryoverApplied, progressUnit, streak } =
     taskProgress;
@@ -81,8 +83,20 @@ export function TaskCard({
   const { taskId: activeTaskId, pausedElapsed, isRunning } = useTimerStore();
   const hasPausedTimer = !isHabit && activeTaskId === task.id && pausedElapsed > 0 && !isRunning;
 
+  // Notes input state
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [pendingAmount, setPendingAmount] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState('');
+
   // Handle quick-add with haptic and sound feedback
-  const handleQuickAdd = (amount: number) => {
+  const handleQuickAdd = (amount: number, withNote = false) => {
+    if (withNote) {
+      // Show note input first
+      setPendingAmount(amount);
+      setShowNoteInput(true);
+      return;
+    }
+
     // Trigger haptic feedback
     if (settings.vibrationEnabled) {
       triggerHaptic('light');
@@ -93,6 +107,32 @@ export function TaskCard({
     }
     // Call the actual handler
     onQuickAdd(amount);
+  };
+
+  // Submit with note
+  const handleSubmitWithNote = () => {
+    if (pendingAmount === null) return;
+
+    if (settings.vibrationEnabled) {
+      triggerHaptic('light');
+    }
+    if (settings.soundEnabled) {
+      playSound('log');
+    }
+
+    onQuickAdd(pendingAmount, noteText.trim() || undefined);
+
+    // Reset state
+    setShowNoteInput(false);
+    setPendingAmount(null);
+    setNoteText('');
+  };
+
+  // Cancel note input
+  const handleCancelNote = () => {
+    setShowNoteInput(false);
+    setPendingAmount(null);
+    setNoteText('');
   };
 
   // Handle undo with feedback
@@ -147,6 +187,20 @@ export function TaskCard({
             title={PRIORITY_LABELS[task.priority]}
           />
           <h3 className={styles.name}>{task.name}</h3>
+
+          {/* Break Down Button */}
+          {onOpenBreakdown && (
+            <button
+              className={styles.breakdownBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenBreakdown();
+              }}
+              title="Break down this task"
+            >
+              <Wand2 size={14} />
+            </button>
+          )}
 
           {/* Streak Badge */}
           <AnimatePresence>
@@ -267,10 +321,24 @@ export function TaskCard({
                   size="sm"
                   className={styles.quickAddButton}
                   onClick={() => handleQuickAdd(minutes)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleQuickAdd(minutes, true);
+                  }}
+                  title="Click to add, right-click to add with note"
                 >
                   +{minutes}
                 </Button>
               ))}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={styles.noteButton}
+                onClick={() => handleQuickAdd(15, true)}
+                title="Add time with a note"
+              >
+                <MessageSquare size={16} />
+              </Button>
             </div>
             <div className={styles.mainActions}>
               {canUndo && (
@@ -297,6 +365,58 @@ export function TaskCard({
           </>
         )}
       </div>
+
+      {/* Note Input Overlay */}
+      <AnimatePresence>
+        {showNoteInput && (
+          <motion.div
+            className={styles.noteInputOverlay}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+          >
+            <div className={styles.noteInputHeader}>
+              <span className={styles.noteInputLabel}>
+                Add {isHabit ? pendingAmount : `${pendingAmount}m`} with note:
+              </span>
+              <button
+                className={styles.noteInputClose}
+                onClick={handleCancelNote}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <input
+              type="text"
+              className={styles.noteInput}
+              placeholder="What did you work on? (optional)"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSubmitWithNote();
+                if (e.key === 'Escape') handleCancelNote();
+              }}
+              autoFocus
+            />
+            <div className={styles.noteInputActions}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelNote}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSubmitWithNote}
+              >
+                Add {isHabit ? '' : `${pendingAmount}m`}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.article>
   );
 }

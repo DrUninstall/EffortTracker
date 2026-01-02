@@ -22,6 +22,7 @@ import { toast } from '@/components/ui/Toast';
 import { formatTimer, formatMinutes } from '@/utils/date';
 import { triggerHaptic } from '@/lib/haptics';
 import { playSound } from '@/lib/sounds';
+import { FocusCompanion } from '@/components/FocusCompanion';
 import styles from './page.module.css';
 
 export default function TimerPage() {
@@ -497,6 +498,14 @@ export default function TimerPage() {
           )}
         </div>
       )}
+
+      {/* Focus Companion - Visual encouragement */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: 'var(--space-4) 0' }}>
+        <FocusCompanion
+          isTimerRunning={isRunning}
+          elapsedMinutes={projectedProgress?.elapsedMinutes || Math.round(displayTime / 60000)}
+        />
+      </div>
 
       {/* Already done indicator */}
       {projectedProgress?.isDone && (

@@ -90,6 +90,8 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   soundEnabled: boolean;
   vibrationEnabled: boolean;
+  notificationsEnabled: boolean; // Whether to show reminder notifications
+  reminderIntervalMinutes: number; // How often to remind (1, 5, 15, 30, 60)
 }
 
 // Export/Import types

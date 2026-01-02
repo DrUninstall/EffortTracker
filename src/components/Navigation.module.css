@@ -103,7 +103,7 @@
     display: flex;
     flex-direction: column;
     padding: var(--space-4);
-    gap: var(--space-1);
+    /* Note: no gap - we use a wrapper approach for the indicator positioning */
   }
 
   .sidebarNavItem {
@@ -112,6 +112,7 @@
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-1); /* Spacing between items */
     border-radius: var(--radius-sm);
     color: var(--muted-foreground);
     text-decoration: none;
@@ -120,12 +121,16 @@
     transition: color var(--duration-fast) var(--ease-out-cubic);
   }
 
+  .sidebarNavItem:last-child {
+    margin-bottom: 0;
+  }
+
   .sidebarNavItem:hover {
     color: var(--foreground);
   }
 
   .sidebarNavItem.active {
-    color: var(--primary-foreground);
+    color: white; /* Always white on blue background for visibility in both light/dark modes */
   }
 
   .sidebarNavItem .navIcon,
@@ -140,11 +145,20 @@
 
   .sidebarActiveIndicator {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: calc(var(--space-3) * 2 + 1.25rem); /* Match nav item height: padding + line height */
-    background-color: var(--primary);
+    top: var(--space-4); /* Match sidebarNav padding */
+    left: var(--space-4);
+    right: var(--space-4);
+    /* Height = item height + margin for correct 100% positioning */
+    /* Item padding (--space-3 * 2) + line-height (1.25rem) + margin-bottom (--space-1) */
+    height: calc(var(--space-3) * 2 + 1.25rem + var(--space-1));
+    /* Use padding-bottom to only color the actual item area */
+    padding-bottom: var(--space-1);
+    box-sizing: border-box;
+    background: linear-gradient(
+      to bottom,
+      var(--primary) calc(100% - var(--space-1)),
+      transparent calc(100% - var(--space-1))
+    );
     border-radius: var(--radius-sm);
     z-index: 0;
     pointer-events: none;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wand2, ChevronDown, ChevronUp, Plus, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ interface TaskBreakdownProps {
   isOpen: boolean;
   onClose: () => void;
   onAddSubtask?: (subtask: string) => void;
+  initialTaskName?: string;
 }
 
 // Spiciness levels (inspired by Goblin.tools)
@@ -72,11 +73,19 @@ function matchTemplate(taskName: string): string[][] {
   return BREAKDOWN_TEMPLATES.default;
 }
 
-export function TaskBreakdown({ isOpen, onClose, onAddSubtask }: TaskBreakdownProps) {
+export function TaskBreakdown({ isOpen, onClose, onAddSubtask, initialTaskName }: TaskBreakdownProps) {
   const [taskInput, setTaskInput] = useState('');
   const [spiciness, setSpiciness] = useState(2);
   const [breakdown, setBreakdown] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Pre-populate with initialTaskName when dialog opens
+  useEffect(() => {
+    if (isOpen && initialTaskName) {
+      setTaskInput(initialTaskName);
+      setBreakdown([]); // Reset previous results
+    }
+  }, [isOpen, initialTaskName]);
 
   const generateBreakdown = useCallback(() => {
     if (!taskInput.trim()) return;

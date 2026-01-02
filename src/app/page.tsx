@@ -12,6 +12,7 @@ import { WeeklyOverview } from '@/components/home/WeeklyOverview';
 import { DailyProgressRing } from '@/components/home/DailyProgressRing';
 import { QuickAddTaskDialog } from '@/components/home/QuickAddTaskDialog';
 import { CommandPalette } from '@/components/CommandPalette';
+import { TaskBreakdown } from '@/components/TaskBreakdown';
 import { Button } from '@/components/ui/button';
 import {
   formatDateDisplay,
@@ -50,6 +51,10 @@ export default function TodayPage() {
 
   // Command palette state
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+
+  // Task breakdown state
+  const [showTaskBreakdown, setShowTaskBreakdown] = useState(false);
+  const [breakdownTaskName, setBreakdownTaskName] = useState('');
 
   // Track which tasks have already celebrated (to prevent duplicate celebrations)
   const celebratedTasksRef = useRef<Set<string>>(new Set());
@@ -98,16 +103,16 @@ export default function TodayPage() {
   };
 
   // Handlers
-  const handleQuickAdd = (taskId: string, amount: number, taskName: string, isHabit: boolean) => {
+  const handleQuickAdd = (taskId: string, amount: number, taskName: string, isHabit: boolean, note?: string) => {
     // Get progress BEFORE adding the log to check if this will complete the quota
     const progressBefore = getTaskProgress(taskId, selectedDate);
     const wasDoneBefore = progressBefore?.isDone ?? false;
 
     if (isHabit) {
-      addLog(taskId, 0, 'QUICK_ADD', selectedDate, amount);
+      addLog(taskId, 0, 'QUICK_ADD', selectedDate, amount, note);
       toast.success(`Added ${amount} to ${taskName}`);
     } else {
-      addLog(taskId, amount, 'QUICK_ADD', selectedDate);
+      addLog(taskId, amount, 'QUICK_ADD', selectedDate, undefined, note);
       toast.success(`Added ${amount}m to ${taskName}`);
     }
 
@@ -184,6 +189,9 @@ export default function TodayPage() {
 
   return (
     <div className={styles.container}>
+      {/* Weekly Overview - Fixed at top for visual stability */}
+      <WeeklyOverview />
+
       {/* Greeting */}
       {greeting && (
         <div className={styles.greeting}>
@@ -238,9 +246,6 @@ export default function TodayPage() {
         <DailyProgressRing progress={taskProgress} />
       )}
 
-      {/* Weekly Overview */}
-      <WeeklyOverview />
-
       {/* Task List */}
       <div className={styles.taskList}>
         {taskProgress.length === 0 ? (
@@ -255,7 +260,7 @@ export default function TodayPage() {
             <TaskCard
               key={tp.task.id}
               taskProgress={tp}
-              onQuickAdd={(amount) => handleQuickAdd(tp.task.id, amount, tp.task.name, tp.task.task_type === 'HABIT')}
+              onQuickAdd={(amount, note) => handleQuickAdd(tp.task.id, amount, tp.task.name, tp.task.task_type === 'HABIT', note)}
               onStartTimer={() =>
                 handleStartTimer(
                   tp.task.id,
@@ -265,6 +270,10 @@ export default function TodayPage() {
               }
               onUndo={() => handleUndo(tp.task.id)}
               canUndo={canUndoTask(tp.task.id)}
+              onOpenBreakdown={() => {
+                setBreakdownTaskName(tp.task.name);
+                setShowTaskBreakdown(true);
+              }}
             />
           ))
         )}
@@ -289,6 +298,13 @@ export default function TodayPage() {
       <CommandPalette
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
+      />
+
+      {/* Task Breakdown Tool */}
+      <TaskBreakdown
+        isOpen={showTaskBreakdown}
+        onClose={() => setShowTaskBreakdown(false)}
+        initialTaskName={breakdownTaskName}
       />
     </div>
   );

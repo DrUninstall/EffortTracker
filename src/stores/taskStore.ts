@@ -32,6 +32,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   soundEnabled: true, // Sounds ON by default
   vibrationEnabled: true, // Haptics ON by default
+  notificationsEnabled: false, // Notifications OFF by default (requires permission)
+  reminderIntervalMinutes: 30, // Default 30 minute reminders
 };
 
 // Demo tasks for first run
@@ -236,6 +238,8 @@ export const useTaskStore = create<TaskState>()(
           return isHabit
             ? computeDailyHabitProgress(task, logs, targetDate)
             : computeDailyProgress(task, logs, targetDate);
+        } else if (task.quota_type === 'DAYS_PER_WEEK') {
+          return computeDaysPerWeekProgress(task, logs, targetDate);
         } else {
           return isHabit
             ? computeWeeklyHabitProgress(task, logs, targetDate)
@@ -462,6 +466,60 @@ function computeWeeklyHabitProgress(
     isDone,
     carryoverApplied: 0, // Habits never carry over
     progressUnit: 'count',
+  };
+}
+
+// Helper function to compute DAYS_PER_WEEK task progress
+function computeDaysPerWeekProgress(
+  task: Task,
+  logs: IncrementLog[],
+  date: string
+): TaskProgress {
+  const targetDays = task.weekly_days_target || 3;
+  const dailyMinutes = task.daily_quota_minutes || 0;
+  const { start, end } = getISOWeekRange(date);
+
+  // Get all logs in this week
+  const weekLogs = logs.filter(
+    (l) =>
+      l.task_id === task.id && l.date >= start && l.date <= end
+  );
+
+  // Count unique days with logs that meet the daily quota
+  const daysTotals = new Map<string, number>();
+  for (const log of weekLogs) {
+    const current = daysTotals.get(log.date) || 0;
+    daysTotals.set(log.date, current + log.minutes);
+  }
+
+  // Count days that hit the daily quota
+  let daysCompleted = 0;
+  daysTotals.forEach((totalMinutes) => {
+    if (totalMinutes >= dailyMinutes) {
+      daysCompleted++;
+    }
+  });
+
+  // Calculate days remaining in the week
+  const today = date;
+  const daysInWeek = getDateRange(start, end);
+  const daysRemaining = daysInWeek.filter(d => d >= today).length;
+
+  const remaining = Math.max(0, targetDays - daysCompleted);
+  const isDone = daysCompleted >= targetDays;
+
+  // Progress is number of days completed, quota is target days
+  return {
+    task,
+    progress: daysCompleted,
+    effectiveQuota: targetDays,
+    remaining,
+    isDone,
+    carryoverApplied: 0, // No carryover for days-per-week
+    progressUnit: 'count', // Days are counted, not minutes
+    daysCompletedThisWeek: daysCompleted,
+    daysRemainingInWeek: daysRemaining,
+    weeklyDaysTarget: targetDays,
   };
 }
 

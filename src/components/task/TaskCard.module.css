@@ -55,6 +55,31 @@
   flex: 1;
 }
 
+/* Break Down Button */
+.breakdownBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--duration-fast) var(--ease-out-cubic),
+              color var(--duration-fast) var(--ease-out-cubic),
+              background-color var(--duration-fast) var(--ease-out-cubic);
+  flex-shrink: 0;
+}
+
+.breakdownBtn:hover {
+  opacity: 1;
+  color: var(--primary);
+  background-color: var(--accent);
+}
+
 .doneIndicator {
   display: flex;
   align-items: center;
@@ -253,6 +278,85 @@
 
 .habitAddButton:active {
   transform: scale(0.95);
+}
+
+/* Note Button */
+.noteButton {
+  width: 2rem;
+  height: 2rem;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+.noteButton:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+/* Note Input Overlay */
+.noteInputOverlay {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background-color: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.noteInputHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.noteInputLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.noteInputClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.noteInputClose:hover {
+  background-color: var(--background-base);
+  color: var(--foreground);
+}
+
+.noteInput {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  background-color: var(--background-base);
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.noteInput::placeholder {
+  color: var(--muted-foreground);
+}
+
+.noteInputActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 /* Mobile adjustments */

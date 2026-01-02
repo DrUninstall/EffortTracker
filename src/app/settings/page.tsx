@@ -15,6 +15,9 @@ import {
   Sun,
   Moon,
   Monitor,
+  Bell,
+  Volume2,
+  Vibrate,
 } from 'lucide-react';
 import { useTaskStore, selectActiveTasks, selectArchivedTasks } from '@/stores/taskStore';
 import { Task, Priority, QuotaType, TaskType, PomodoroDefaults } from '@/types';
@@ -38,6 +41,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/Toast';
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  REMINDER_PRESETS,
+} from '@/lib/notifications';
 import styles from './page.module.css';
 
 const DEFAULT_POMODORO: PomodoroDefaults = {
@@ -167,9 +176,9 @@ export default function SettingsPage() {
       task_type: formTaskType,
       quota_type: formQuotaType,
       // Time-based fields
-      daily_quota_minutes: !isHabit && formQuotaType === 'DAILY' ? formDailyQuota : undefined,
+      daily_quota_minutes: !isHabit && (formQuotaType === 'DAILY' || formQuotaType === 'DAYS_PER_WEEK') ? formDailyQuota : undefined,
       weekly_quota_minutes: !isHabit && formQuotaType === 'WEEKLY' ? formWeeklyQuota : undefined,
-      weekly_days_target: !isHabit && formQuotaType === 'WEEKLY' ? formWeeklyDaysTarget : undefined,
+      weekly_days_target: !isHabit && (formQuotaType === 'WEEKLY' || formQuotaType === 'DAYS_PER_WEEK') ? formWeeklyDaysTarget : undefined,
       // Habit-based fields
       habit_quota_count: isHabit ? formHabitQuota : undefined,
       habit_unit: isHabit && formHabitUnit.trim() ? formHabitUnit.trim() : undefined,
@@ -435,6 +444,115 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Notifications Section */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Notifications</h2>
+
+        {/* Sound Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <Volume2 size={16} />
+              <span className={styles.taskName}>Sound Effects</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Play sounds on quota completion and logging
+            </div>
+          </div>
+          <Switch
+            checked={settings.soundEnabled}
+            onCheckedChange={(checked) =>
+              updateSettings({ soundEnabled: checked })
+            }
+          />
+        </div>
+
+        {/* Vibration Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <Vibrate size={16} />
+              <span className={styles.taskName}>Haptic Feedback</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Vibration feedback on mobile devices
+            </div>
+          </div>
+          <Switch
+            checked={settings.vibrationEnabled}
+            onCheckedChange={(checked) =>
+              updateSettings({ vibrationEnabled: checked })
+            }
+          />
+        </div>
+
+        {/* Push Notifications Toggle */}
+        {isNotificationSupported() && (
+          <div className={styles.taskItem}>
+            <div className={styles.taskInfo}>
+              <div className={styles.taskHeader}>
+                <Bell size={16} />
+                <span className={styles.taskName}>Reminder Notifications</span>
+              </div>
+              <div className={styles.taskMeta}>
+                {getNotificationPermission() === 'denied'
+                  ? 'Notifications blocked by browser'
+                  : 'Periodic reminders to work on tasks'}
+              </div>
+            </div>
+            <Switch
+              checked={settings.notificationsEnabled}
+              disabled={getNotificationPermission() === 'denied'}
+              onCheckedChange={async (checked) => {
+                if (checked) {
+                  const permission = await requestNotificationPermission();
+                  if (permission === 'granted') {
+                    updateSettings({ notificationsEnabled: true });
+                    toast.success('Notifications enabled!');
+                  } else {
+                    toast.info('Notification permission denied');
+                  }
+                } else {
+                  updateSettings({ notificationsEnabled: false });
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Reminder Interval */}
+        {settings.notificationsEnabled && (
+          <div className={styles.taskItem}>
+            <div className={styles.taskInfo}>
+              <div className={styles.taskHeader}>
+                <Bell size={16} />
+                <span className={styles.taskName}>Reminder Interval</span>
+              </div>
+              <div className={styles.taskMeta}>
+                How often to send reminders
+              </div>
+            </div>
+            <Select
+              value={String(settings.reminderIntervalMinutes)}
+              onValueChange={(value) =>
+                updateSettings({ reminderIntervalMinutes: Number(value) })
+              }
+            >
+              <SelectTrigger style={{ width: '10rem' }}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REMINDER_PRESETS.map((preset) => (
+                  <SelectItem key={preset.value} value={String(preset.value)}>
+                    {preset.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </section>
+
       {/* Data Section */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Data</h2>
@@ -537,6 +655,7 @@ export default function SettingsPage() {
                 <SelectContent>
                   <SelectItem value="DAILY">Daily</SelectItem>
                   <SelectItem value="WEEKLY">Weekly</SelectItem>
+                  <SelectItem value="DAYS_PER_WEEK">Days Per Week</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -588,6 +707,37 @@ export default function SettingsPage() {
                     id="carryover"
                     checked={formAllowCarryover}
                     onCheckedChange={setFormAllowCarryover}
+                  />
+                </div>
+              </>
+            ) : formQuotaType === 'DAYS_PER_WEEK' ? (
+              /* Days per week fields */
+              <>
+                <div className={styles.formField}>
+                  <Label htmlFor="weeklyDays">Target Days Per Week</Label>
+                  <Input
+                    id="weeklyDays"
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={formWeeklyDaysTarget || 3}
+                    onChange={(e) =>
+                      setFormWeeklyDaysTarget(
+                        Math.min(7, Math.max(1, parseInt(e.target.value) || 1))
+                      )
+                    }
+                    placeholder="e.g., 3"
+                  />
+                </div>
+
+                <div className={styles.formField}>
+                  <Label htmlFor="dailyQuota">Minutes Per Session</Label>
+                  <Input
+                    id="dailyQuota"
+                    type="number"
+                    min={1}
+                    value={formDailyQuota}
+                    onChange={(e) => setFormDailyQuota(parseInt(e.target.value) || 0)}
                   />
                 </div>
               </>

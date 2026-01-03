@@ -12,7 +12,7 @@ export function HydrationHandler() {
     // Zustand persist middleware handles hydration automatically
     // This is just a placeholder for any additional initialization logic
     const unsubscribe = useTaskStore.persist.onFinishHydration(() => {
-      console.log('Store hydration complete');
+      // Hydration complete - add any additional initialization logic here
     });
 
     return () => {

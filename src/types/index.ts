@@ -28,6 +28,8 @@ export interface Task {
   pomodoro_defaults: PomodoroDefaults;
   is_archived: boolean;
   created_at: number; // timestamp
+  priorityRank?: number; // Rank within priority level (lower = higher priority)
+  comparisonCount?: number; // How many comparisons were made during ranking
 }
 
 export interface IncrementLog {
@@ -92,6 +94,8 @@ export interface AppSettings {
   vibrationEnabled: boolean;
   notificationsEnabled: boolean; // Whether to show reminder notifications
   reminderIntervalMinutes: number; // How often to remind (1, 5, 15, 30, 60)
+  enablePriorityRanking: boolean; // Enable comparative priority ranking
+  showRankingOnboarding: boolean; // One-time tutorial for ranking feature
 }
 
 // Export/Import types

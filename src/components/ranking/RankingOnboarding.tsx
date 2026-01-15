@@ -62,8 +62,8 @@ export function RankingOnboarding({ isOpen, onComplete }: RankingOnboardingProps
                 <div className={styles.featureContent}>
                   <h3 className={styles.featureTitle}>Quick Comparisons</h3>
                   <p className={styles.featureText}>
-                    When you add a task, we'll ask you to compare it with a few existing tasks.
-                    This helps you quickly prioritize what's most important.
+                    When you add a task, we&apos;ll ask you to compare it with a few existing tasks.
+                    This helps you quickly prioritize what&apos;s most important.
                   </p>
                 </div>
               </div>
@@ -75,8 +75,8 @@ export function RankingOnboarding({ isOpen, onComplete }: RankingOnboardingProps
                 <div className={styles.featureContent}>
                   <h3 className={styles.featureTitle}>Binary Search</h3>
                   <p className={styles.featureText}>
-                    Using an efficient algorithm, you'll only need 2-4 comparisons to rank a task
-                    among 10+ others. It's fast and painless.
+                    Using an efficient algorithm, you&apos;ll only need 2-4 comparisons to rank a task
+                    among 10+ others. It&apos;s fast and painless.
                   </p>
                 </div>
               </div>
@@ -88,7 +88,7 @@ export function RankingOnboarding({ isOpen, onComplete }: RankingOnboardingProps
                 <div className={styles.featureContent}>
                   <h3 className={styles.featureTitle}>Skip Anytime</h3>
                   <p className={styles.featureText}>
-                    You can always skip ranking if you're in a hurry. Ranked tasks appear first,
+                    You can always skip ranking if you&apos;re in a hurry. Ranked tasks appear first,
                     unranked tasks appear after.
                   </p>
                 </div>
@@ -98,7 +98,7 @@ export function RankingOnboarding({ isOpen, onComplete }: RankingOnboardingProps
             {/* Actions */}
             <div className={styles.actions}>
               <Button onClick={handleComplete} className={styles.primaryButton}>
-                Got it, let's go!
+                Got it, let&apos;s go!
               </Button>
             </div>
 

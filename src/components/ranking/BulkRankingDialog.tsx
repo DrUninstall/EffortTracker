@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { Task, Priority } from '@/types';
@@ -49,17 +49,14 @@ export function BulkRankingDialog({
     }
   }, [isOpen, priority, getTasksForComparison]);
 
-  // Start ranking when dialog opens
-  useEffect(() => {
-    if (isOpen && tasksToRank.length > 0 && currentTaskIndex < tasksToRank.length) {
-      rankNextTask();
-    } else if (isOpen && currentTaskIndex >= tasksToRank.length && tasksToRank.length > 0) {
-      // All tasks ranked
-      handleComplete();
+  const handleComplete = useCallback(() => {
+    if (settings.vibrationEnabled) {
+      triggerHaptic('success');
     }
-  }, [isOpen, tasksToRank, currentTaskIndex]);
+    onComplete();
+  }, [settings.vibrationEnabled, onComplete]);
 
-  const rankNextTask = async () => {
+  const rankNextTask = useCallback(async () => {
     if (currentTaskIndex >= tasksToRank.length) return;
 
     const taskToRank = tasksToRank[currentTaskIndex];
@@ -97,7 +94,17 @@ export function BulkRankingDialog({
       console.error('Ranking error:', error);
       setIsProcessing(false);
     }
-  };
+  }, [currentTaskIndex, tasksToRank, rankedTasks, rankTask]);
+
+  // Start ranking when dialog opens
+  useEffect(() => {
+    if (isOpen && tasksToRank.length > 0 && currentTaskIndex < tasksToRank.length) {
+      rankNextTask();
+    } else if (isOpen && currentTaskIndex >= tasksToRank.length && tasksToRank.length > 0) {
+      // All tasks ranked
+      handleComplete();
+    }
+  }, [isOpen, tasksToRank, currentTaskIndex, rankNextTask, handleComplete]);
 
   const handleChoice = (choice: 1 | -1) => {
     if (settings.vibrationEnabled) {
@@ -108,13 +115,6 @@ export function BulkRankingDialog({
       comparisonResolver(choice);
       setComparisonResolver(null);
     }
-  };
-
-  const handleComplete = () => {
-    if (settings.vibrationEnabled) {
-      triggerHaptic('success');
-    }
-    onComplete();
   };
 
   if (!isOpen || tasksToRank.length === 0) {

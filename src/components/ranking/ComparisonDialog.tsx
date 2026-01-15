@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowUp, ArrowDown } from 'lucide-react';
 import { Task, Priority } from '@/types';
@@ -43,17 +43,7 @@ export function ComparisonDialog({
   const [isProcessing, setIsProcessing] = useState(false);
   const [comparisonResolver, setComparisonResolver] = useState<((value: 1 | -1) => void) | null>(null);
 
-  // Start the comparison process when dialog opens
-  useEffect(() => {
-    if (isOpen && existingTasks.length > 0) {
-      setIsProcessing(true);
-      setCurrentStep(0);
-      setTotalSteps(Math.ceil(Math.log2(existingTasks.length + 1)));
-      startComparison();
-    }
-  }, [isOpen]);
-
-  const startComparison = async () => {
+  const startComparison = useCallback(async () => {
     const comparisonCallback: ComparisonCallback = (taskA, taskB) => {
       return new Promise<1 | -1>((resolve) => {
         setCurrentComparison(taskB);
@@ -70,7 +60,17 @@ export function ComparisonDialog({
       setIsProcessing(false);
       onSkip();
     }
-  };
+  }, [newTask, existingTasks, onComplete, onSkip]);
+
+  // Start the comparison process when dialog opens
+  useEffect(() => {
+    if (isOpen && existingTasks.length > 0) {
+      setIsProcessing(true);
+      setCurrentStep(0);
+      setTotalSteps(Math.ceil(Math.log2(existingTasks.length + 1)));
+      startComparison();
+    }
+  }, [isOpen, existingTasks.length, startComparison]);
 
   const handleChoice = (choice: 1 | -1) => {
     if (settings.vibrationEnabled) {

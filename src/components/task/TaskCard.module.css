@@ -361,6 +361,10 @@
 
 /* Mobile adjustments */
 @media (max-width: 480px) {
+  .card {
+    padding: var(--space-3);
+  }
+
   .actions {
     flex-direction: column;
     align-items: stretch;
@@ -368,10 +372,38 @@
   }
 
   .quickAddButtons {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-1-5);
+  }
+
+  .quickAddButton {
+    min-width: auto;
+    padding: var(--space-1-5);
+    font-size: 0.75rem;
   }
 
   .mainActions {
     justify-content: flex-end;
+  }
+
+  .habitAddButton {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .noteButton {
+    display: none;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .quickAddButtons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quickAddButton {
+    padding: var(--space-2);
   }
 }

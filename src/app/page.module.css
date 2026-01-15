@@ -83,12 +83,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: var(--space-12) var(--space-4);
   text-align: center;
   color: var(--muted-foreground);
 }
 
+.emptyState h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
 .emptyState p {
-  font-size: 1rem;
+  font-size: 0.9375rem;
+  margin: 0 0 var(--space-2);
+  max-width: 280px;
+  line-height: 1.5;
 }

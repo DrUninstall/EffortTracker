@@ -1,0 +1,95 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.sm {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+}
+
+.md {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.sm .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.md .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.indicators {
+  font-family: var(--font-mono);
+  letter-spacing: -1px;
+}
+
+/* Severity colors */
+.low {
+  color: rgb(var(--amber-light-1000));
+  background: rgb(var(--amber-light-50));
+}
+
+.medium {
+  color: rgb(var(--amber-light-1000));
+  background: rgb(var(--amber-light-200));
+}
+
+.high {
+  color: rgb(var(--red-light-1000));
+  background: rgb(var(--red-light-200));
+}
+
+.critical {
+  color: rgb(var(--red-light-1000));
+  background: rgb(var(--red-light-200));
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Dark mode */
+:global(html.dark) .low,
+:global(html.dark) .medium {
+  color: rgb(var(--amber-dark-1000));
+  background: rgb(var(--amber-dark-50));
+}
+
+:global(html.dark) .high,
+:global(html.dark) .critical {
+  color: rgb(var(--red-dark-1000));
+  background: rgb(var(--red-dark-50));
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(html:not(.light):not(.dark)) .low,
+  :global(html:not(.light):not(.dark)) .medium {
+    color: rgb(var(--amber-dark-1000));
+    background: rgb(var(--amber-dark-50));
+  }
+
+  :global(html:not(.light):not(.dark)) .high,
+  :global(html:not(.light):not(.dark)) .critical {
+    color: rgb(var(--red-dark-1000));
+    background: rgb(var(--red-dark-50));
+  }
+}

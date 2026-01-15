@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   reminderIntervalMinutes: 30, // Default 30 minute reminders
   enablePriorityRanking: true, // Priority ranking ON by default
   showRankingOnboarding: true, // Show onboarding for new users
+  showPaceWarnings: true, // Show pace warnings for weekly tasks
+  showTaskGuidance: true, // Show "work on next" recommendations
 };
 
 // Demo tasks for first run

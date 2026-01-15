@@ -96,6 +96,9 @@ export interface AppSettings {
   reminderIntervalMinutes: number; // How often to remind (1, 5, 15, 30, 60)
   enablePriorityRanking: boolean; // Enable comparative priority ranking
   showRankingOnboarding: boolean; // One-time tutorial for ranking feature
+  // Pacing and guidance features
+  showPaceWarnings: boolean; // Show warnings when behind on weekly quotas
+  showTaskGuidance: boolean; // Show "work on next" recommendations
 }
 
 // Export/Import types
@@ -136,4 +139,41 @@ export interface TaskPreset {
   quota: number;
   quotaType: QuotaType;
   icon: string;
+}
+
+// Warning severity levels for pace tracking
+export type WarningSeverity = 'none' | 'low' | 'medium' | 'high' | 'critical';
+
+// Pace projection for weekly tasks
+export interface PaceProjection {
+  taskId: string;
+  taskName: string;
+  currentPace: number; // minutes/day averaged so far
+  requiredPace: number; // minutes/day needed to hit quota
+  projectedCompletion: string | null; // YYYY-MM-DD or null if won't complete
+  deficit: number; // how many minutes behind
+  daysElapsed: number;
+  daysRemaining: number;
+  severity: WarningSeverity;
+}
+
+// Task warning data
+export interface TaskWarning {
+  taskId: string;
+  taskName: string;
+  warningType: 'behind_pace' | 'at_risk' | 'critical';
+  severity: WarningSeverity;
+  message: string;
+  projection: PaceProjection;
+}
+
+// Task recommendation for guidance
+export interface TaskRecommendation {
+  taskId: string;
+  taskName: string;
+  reason: string;
+  urgencyScore: number; // 0-100
+  dailyTarget: number; // suggested minutes/count for today
+  priority: Priority;
+  isHabit: boolean;
 }

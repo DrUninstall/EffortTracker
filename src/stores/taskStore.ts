@@ -34,6 +34,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   vibrationEnabled: true, // Haptics ON by default
   notificationsEnabled: false, // Notifications OFF by default (requires permission)
   reminderIntervalMinutes: 30, // Default 30 minute reminders
+  enablePriorityRanking: true, // Priority ranking ON by default
+  showRankingOnboarding: true, // Show onboarding for new users
 };
 
 // Demo tasks for first run
@@ -110,6 +112,11 @@ interface TaskState {
   getAllTaskProgress: (date?: string) => TaskProgress[];
   getLogsForTask: (taskId: string, startDate: string, endDate: string) => IncrementLog[];
   getLogsForDate: (date: string) => IncrementLog[];
+
+  // Priority ranking
+  rankTask: (taskId: string, newRank: number) => void;
+  getTasksForComparison: (priority: Priority) => Task[];
+  rebalanceTaskRanks: (priority: Priority) => void;
 
   // Export/Import
   exportData: () => ExportData;
@@ -260,7 +267,13 @@ export const useTaskStore = create<TaskState>()(
             const priorityDiff =
               PRIORITY_ORDER[a.task.priority] - PRIORITY_ORDER[b.task.priority];
             if (priorityDiff !== 0) return priorityDiff;
-            // Then by name
+
+            // Then by priority rank (lower rank = higher priority)
+            const aRank = a.task.priorityRank ?? Infinity;
+            const bRank = b.task.priorityRank ?? Infinity;
+            if (aRank !== bRank) return aRank - bRank;
+
+            // Finally by name for unranked tasks
             return a.task.name.localeCompare(b.task.name);
           });
       },
@@ -276,6 +289,78 @@ export const useTaskStore = create<TaskState>()(
       getLogsForDate: (date) => {
         const { logs } = get();
         return logs.filter((l) => l.date === date);
+      },
+
+      rankTask: (taskId, newRank) => {
+        set((state) => {
+          const task = state.tasks.find((t) => t.id === taskId);
+          if (!task) return state;
+
+          // Update tasks with new rank, shifting others as needed
+          const updatedTasks = state.tasks.map((t) => {
+            if (t.id === taskId) {
+              return { ...t, priorityRank: newRank };
+            }
+
+            // Shift tasks in the same priority level with rank >= newRank
+            if (
+              t.priority === task.priority &&
+              t.priorityRank !== undefined &&
+              t.priorityRank >= newRank
+            ) {
+              return { ...t, priorityRank: t.priorityRank + 1 };
+            }
+
+            return t;
+          });
+
+          return { tasks: updatedTasks };
+        });
+      },
+
+      getTasksForComparison: (priority) => {
+        const { tasks } = get();
+        return tasks
+          .filter((t) => t.priority === priority && !t.is_archived)
+          .sort((a, b) => {
+            const aRank = a.priorityRank ?? Infinity;
+            const bRank = b.priorityRank ?? Infinity;
+            if (aRank !== bRank) return aRank - bRank;
+            return a.name.localeCompare(b.name);
+          });
+      },
+
+      rebalanceTaskRanks: (priority) => {
+        set((state) => {
+          // Get tasks for this priority level, sorted by current rank
+          const tasksInPriority = state.tasks
+            .filter((t) => t.priority === priority && !t.is_archived)
+            .sort((a, b) => {
+              const aRank = a.priorityRank ?? Infinity;
+              const bRank = b.priorityRank ?? Infinity;
+              if (aRank !== bRank) return aRank - bRank;
+              return a.name.localeCompare(b.name);
+            });
+
+          // Reassign ranks with spacing of 100
+          const taskIdToNewRank = new Map<string, number>();
+          tasksInPriority.forEach((task, index) => {
+            if (task.priorityRank !== undefined) {
+              taskIdToNewRank.set(task.id, (index + 1) * 100);
+            }
+          });
+
+          // Update tasks
+          const updatedTasks = state.tasks.map((t) => {
+            const newRank = taskIdToNewRank.get(t.id);
+            if (newRank !== undefined) {
+              return { ...t, priorityRank: newRank };
+            }
+            return t;
+          });
+
+          return { tasks: updatedTasks };
+        });
       },
 
       exportData: () => {

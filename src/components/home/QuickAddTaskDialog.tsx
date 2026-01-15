@@ -26,7 +26,9 @@ import {
 } from '@/components/ui/select';
 import { useTaskStore } from '@/stores/taskStore';
 import { triggerHaptic } from '@/lib/haptics';
-import { Priority, QuotaType } from '@/types';
+import { Priority, QuotaType, Task } from '@/types';
+import { ComparisonDialog } from '@/components/ranking/ComparisonDialog';
+import { RankingOnboarding } from '@/components/ranking/RankingOnboarding';
 import styles from './QuickAddTaskDialog.module.css';
 
 interface QuickAddTaskDialogProps {
@@ -53,7 +55,7 @@ const DEFAULT_POMODORO = {
 
 export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps) {
   const router = useRouter();
-  const { addTask, settings } = useTaskStore();
+  const { addTask, settings, getTasksForComparison } = useTaskStore();
   const [showCustomForm, setShowCustomForm] = useState(false);
 
   // Custom form state
@@ -62,13 +64,20 @@ export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps)
   const [customQuotaType, setCustomQuotaType] = useState<QuotaType>('DAILY');
   const [customPriority, setCustomPriority] = useState<Priority>('IMPORTANT');
 
+  // Comparison dialog state
+  const [showComparisonDialog, setShowComparisonDialog] = useState(false);
+  const [pendingTask, setPendingTask] = useState<Omit<Task, 'id' | 'created_at'> | null>(null);
+
+  // Onboarding state
+  const [showRankingOnboarding, setShowRankingOnboarding] = useState(false);
+
   // Create task from preset
   const handlePresetSelect = (preset: typeof PRESETS[0]) => {
     if (settings.vibrationEnabled) {
       triggerHaptic('success');
     }
 
-    addTask({
+    const taskData: Omit<Task, 'id' | 'created_at'> = {
       name: preset.name,
       priority: preset.priority,
       quota_type: preset.quotaType,
@@ -78,8 +87,27 @@ export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps)
       allow_carryover: false,
       pomodoro_defaults: DEFAULT_POMODORO,
       is_archived: false,
-    });
+    };
 
+    // Check if ranking is enabled
+    if (settings.enablePriorityRanking) {
+      const existingTasks = getTasksForComparison(preset.priority);
+      if (existingTasks.length > 0) {
+        // Show onboarding first if needed
+        if (settings.showRankingOnboarding) {
+          setPendingTask(taskData);
+          setShowRankingOnboarding(true);
+          return;
+        }
+        // Show comparison dialog
+        setPendingTask(taskData);
+        setShowComparisonDialog(true);
+        return;
+      }
+    }
+
+    // No ranking needed, create task directly
+    addTask(taskData);
     onClose();
   };
 
@@ -95,7 +123,7 @@ export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps)
 
     const quotaMinutes = parseInt(customQuota) || 30;
 
-    addTask({
+    const taskData: Omit<Task, 'id' | 'created_at'> = {
       name: customName.trim(),
       priority: customPriority,
       quota_type: customQuotaType,
@@ -105,7 +133,27 @@ export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps)
       allow_carryover: false,
       pomodoro_defaults: DEFAULT_POMODORO,
       is_archived: false,
-    });
+    };
+
+    // Check if ranking is enabled
+    if (settings.enablePriorityRanking) {
+      const existingTasks = getTasksForComparison(customPriority);
+      if (existingTasks.length > 0) {
+        // Show onboarding first if needed
+        if (settings.showRankingOnboarding) {
+          setPendingTask(taskData);
+          setShowRankingOnboarding(true);
+          return;
+        }
+        // Show comparison dialog
+        setPendingTask(taskData);
+        setShowComparisonDialog(true);
+        return;
+      }
+    }
+
+    // No ranking needed, create task directly
+    addTask(taskData);
 
     // Reset form
     setCustomName('');
@@ -118,6 +166,57 @@ export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps)
   const handleAdvancedSettings = () => {
     onClose();
     router.push('/settings?new=true');
+  };
+
+  // Handle comparison completion
+  const handleComparisonComplete = (rank: number, comparisons: number) => {
+    if (!pendingTask) return;
+
+    // Create task with the assigned rank
+    addTask({
+      ...pendingTask,
+      priorityRank: rank,
+      comparisonCount: comparisons,
+    });
+
+    // Reset state
+    setPendingTask(null);
+    setShowComparisonDialog(false);
+    setCustomName('');
+    setCustomQuota('30');
+    setShowCustomForm(false);
+    onClose();
+  };
+
+  // Handle skipping ranking
+  const handleComparisonSkip = () => {
+    if (!pendingTask) return;
+
+    // Create task without rank
+    addTask(pendingTask);
+
+    // Reset state
+    setPendingTask(null);
+    setShowComparisonDialog(false);
+    setCustomName('');
+    setCustomQuota('30');
+    setShowCustomForm(false);
+    onClose();
+  };
+
+  // Handle comparison dialog close
+  const handleComparisonClose = () => {
+    setShowComparisonDialog(false);
+    setPendingTask(null);
+  };
+
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowRankingOnboarding(false);
+    // Now show the comparison dialog
+    if (pendingTask) {
+      setShowComparisonDialog(true);
+    }
   };
 
   return (
@@ -279,6 +378,25 @@ export function QuickAddTaskDialog({ isOpen, onClose }: QuickAddTaskDialogProps)
           </motion.div>
         </motion.div>
       )}
+
+      {/* Comparison Dialog */}
+      {pendingTask && (
+        <ComparisonDialog
+          isOpen={showComparisonDialog}
+          newTask={pendingTask}
+          existingTasks={getTasksForComparison(pendingTask.priority)}
+          priority={pendingTask.priority}
+          onComplete={handleComparisonComplete}
+          onSkip={handleComparisonSkip}
+          onClose={handleComparisonClose}
+        />
+      )}
+
+      {/* Ranking Onboarding */}
+      <RankingOnboarding
+        isOpen={showRankingOnboarding}
+        onComplete={handleOnboardingComplete}
+      />
     </AnimatePresence>
   );
 }

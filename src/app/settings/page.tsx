@@ -18,6 +18,7 @@ import {
   Bell,
   Volume2,
   Vibrate,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useTaskStore, selectActiveTasks, selectArchivedTasks } from '@/stores/taskStore';
 import { Task, Priority, QuotaType, TaskType, PomodoroDefaults } from '@/types';
@@ -47,6 +48,7 @@ import {
   requestNotificationPermission,
   REMINDER_PRESETS,
 } from '@/lib/notifications';
+import { BulkRankingDialog } from '@/components/ranking/BulkRankingDialog';
 import styles from './page.module.css';
 
 const DEFAULT_POMODORO: PomodoroDefaults = {
@@ -112,6 +114,8 @@ export default function SettingsPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [showBulkRankingDialog, setShowBulkRankingDialog] = useState(false);
+  const [bulkRankingPriority, setBulkRankingPriority] = useState<Priority>('CORE');
 
   // Task form state
   const [formName, setFormName] = useState('');
@@ -485,6 +489,71 @@ export default function SettingsPage() {
             }
           />
         </div>
+
+        {/* Priority Ranking Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <ArrowUpDown size={16} />
+              <span className={styles.taskName}>Priority Ranking</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Compare tasks to set priorities when creating them
+            </div>
+          </div>
+          <Switch
+            checked={settings.enablePriorityRanking}
+            onCheckedChange={(checked) =>
+              updateSettings({ enablePriorityRanking: checked })
+            }
+          />
+        </div>
+
+        {/* Bulk Re-ranking Buttons */}
+        {settings.enablePriorityRanking && (
+          <div className={styles.taskItem}>
+            <div className={styles.taskInfo}>
+              <div className={styles.taskHeader}>
+                <span className={styles.taskName}>Re-rank All Tasks</span>
+              </div>
+              <div className={styles.taskMeta}>
+                Rank all unranked tasks in a priority level
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkRankingPriority('CORE');
+                  setShowBulkRankingDialog(true);
+                }}
+              >
+                Rank CORE
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkRankingPriority('IMPORTANT');
+                  setShowBulkRankingDialog(true);
+                }}
+              >
+                Rank IMPORTANT
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkRankingPriority('OPTIONAL');
+                  setShowBulkRankingDialog(true);
+                }}
+              >
+                Rank OPTIONAL
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Push Notifications Toggle */}
         {isNotificationSupported() && (
@@ -877,6 +946,17 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Ranking Dialog */}
+      <BulkRankingDialog
+        isOpen={showBulkRankingDialog}
+        priority={bulkRankingPriority}
+        onComplete={() => {
+          setShowBulkRankingDialog(false);
+          toast.success('Tasks ranked successfully!');
+        }}
+        onClose={() => setShowBulkRankingDialog(false)}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { useTimerStore } from '@/stores/timerStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { triggerHaptic } from '@/lib/haptics';
 import { playSound } from '@/lib/sounds';
+import { RankBadge } from '@/components/ranking/RankBadge';
 import styles from './TaskCard.module.css';
 
 interface TaskCardProps {
@@ -187,6 +188,11 @@ export function TaskCard({
             title={PRIORITY_LABELS[task.priority]}
           />
           <h3 className={styles.name}>{task.name}</h3>
+
+          {/* Rank Badge */}
+          {task.priorityRank !== undefined && settings.enablePriorityRanking && (
+            <RankBadge rank={task.priorityRank} variant="small" />
+          )}
 
           {/* Break Down Button */}
           {onOpenBreakdown && (

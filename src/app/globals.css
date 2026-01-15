@@ -88,6 +88,10 @@
   /* Elevation */
   --elevation-raised: 0px 2px 4px -2px rgba(0, 0, 0, 0.08), 0px 4px 8px -4px rgba(0, 0, 0, 0.08);
   --elevation-overlay: 0px 8px 8px -4px rgba(0, 0, 0, 0.04), 0px 20px 24px -4px rgba(0, 0, 0, 0.08);
+  --elevation-floating: 0px 4px 6px -2px rgba(0, 0, 0, 0.1), 0px 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  /* Soft stroke for dividers */
+  --stroke-soft: 0px 0px 0px 1px rgba(0, 17, 102, 0.06);
 
   /* Spacing scale (4px increments) */
   --space-0: 0px;
@@ -226,6 +230,10 @@ html.dark {
   /* Elevation - Dark mode */
   --elevation-raised: 0px 2px 4px -2px rgba(0, 0, 0, 0.16), 0px 4px 8px -4px rgba(0, 0, 0, 0.16);
   --elevation-overlay: 0px 8px 8px -4px rgba(0, 0, 0, 0.08), 0px 20px 24px -4px rgba(0, 0, 0, 0.16);
+  --elevation-floating: 0px 4px 6px -2px rgba(0, 0, 0, 0.2), 0px 10px 15px -3px rgba(0, 0, 0, 0.2);
+
+  /* Soft stroke for dividers - Dark mode */
+  --stroke-soft: 0px 0px 0px 1px rgba(255, 255, 255, 0.06);
 
   /* Priority colors - Dark mode */
   --priority-core: var(--red-dark-1000);
@@ -329,6 +337,10 @@ html.light {
     /* Elevation - Dark mode */
     --elevation-raised: 0px 2px 4px -2px rgba(0, 0, 0, 0.16), 0px 4px 8px -4px rgba(0, 0, 0, 0.16);
     --elevation-overlay: 0px 8px 8px -4px rgba(0, 0, 0, 0.08), 0px 20px 24px -4px rgba(0, 0, 0, 0.16);
+    --elevation-floating: 0px 4px 6px -2px rgba(0, 0, 0, 0.2), 0px 10px 15px -3px rgba(0, 0, 0, 0.2);
+
+    /* Soft stroke for dividers - Dark mode */
+    --stroke-soft: 0px 0px 0px 1px rgba(255, 255, 255, 0.06);
 
     /* Priority colors - Dark mode */
     --priority-core: var(--red-dark-1000);

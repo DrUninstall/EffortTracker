@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Play, Undo2, Plus, Flame, Snowflake, Wand2, MessageSquare, X } from 'lucide-react';
-import { TaskProgress } from '@/types';
+import { TaskProgress, WarningSeverity } from '@/types';
 import { formatMinutes } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -12,6 +12,8 @@ import { useTaskStore } from '@/stores/taskStore';
 import { triggerHaptic } from '@/lib/haptics';
 import { playSound } from '@/lib/sounds';
 import { RankBadge } from '@/components/ranking/RankBadge';
+import { WarningBadge } from '@/components/warnings/WarningBadge';
+import { DailyTargetIndicator } from '@/components/guidance/DailyTargetIndicator';
 import styles from './TaskCard.module.css';
 
 interface TaskCardProps {
@@ -21,6 +23,10 @@ interface TaskCardProps {
   onUndo: () => boolean;
   canUndo: boolean;
   onOpenBreakdown?: () => void;
+  warningSeverity?: WarningSeverity;
+  warningMessage?: string;
+  dailyTarget?: number;
+  showDailyTarget?: boolean;
 }
 
 const QUICK_ADD_OPTIONS = [5, 10, 15, 25];
@@ -53,6 +59,10 @@ export function TaskCard({
   onUndo,
   canUndo,
   onOpenBreakdown,
+  warningSeverity,
+  warningMessage,
+  dailyTarget,
+  showDailyTarget = false,
 }: TaskCardProps) {
   const { task, progress, effectiveQuota, remaining, isDone, carryoverApplied, progressUnit, streak } =
     taskProgress;
@@ -194,6 +204,16 @@ export function TaskCard({
             <RankBadge rank={task.priorityRank} variant="small" />
           )}
 
+          {/* Warning Badge */}
+          {warningSeverity && warningSeverity !== 'none' && !isDone && (
+            <WarningBadge
+              severity={warningSeverity}
+              message={warningMessage}
+              size="sm"
+              showIcon={false}
+            />
+          )}
+
           {/* Break Down Button */}
           {onOpenBreakdown && (
             <button
@@ -263,6 +283,14 @@ export function TaskCard({
             <span className={styles.carryover}>
               (−{carryoverApplied}m carryover)
             </span>
+          )}
+          {/* Daily Target Indicator for weekly tasks */}
+          {showDailyTarget && dailyTarget && dailyTarget > 0 && !isDone && (
+            <DailyTargetIndicator
+              target={dailyTarget}
+              isHabit={isHabit}
+              unit={isHabit ? task.habit_unit : undefined}
+            />
           )}
         </div>
       </div>

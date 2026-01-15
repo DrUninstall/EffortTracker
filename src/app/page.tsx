@@ -13,6 +13,8 @@ import { DailyProgressRing } from '@/components/home/DailyProgressRing';
 import { QuickAddTaskDialog } from '@/components/home/QuickAddTaskDialog';
 import { CommandPalette } from '@/components/CommandPalette';
 import { TaskBreakdown } from '@/components/TaskBreakdown';
+import { PaceWarningBanner } from '@/components/warnings/PaceWarningBanner';
+import { TaskGuidanceCard } from '@/components/guidance/TaskGuidanceCard';
 import { Button } from '@/components/ui/button';
 import {
   formatDateDisplay,
@@ -22,6 +24,8 @@ import {
   isToday,
 } from '@/utils/date';
 import { getGreeting } from '@/utils/greetings';
+import { getTaskWarnings, calculateDailyTarget } from '@/utils/paceCalculator';
+import { getTaskRecommendation } from '@/utils/taskRecommendation';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { toast } from '@/components/ui/Toast';
 import styles from './page.module.css';
@@ -29,6 +33,7 @@ import styles from './page.module.css';
 export default function TodayPage() {
   const router = useRouter();
   const {
+    tasks,
     selectedDate,
     setSelectedDate,
     getAllTaskProgress,
@@ -56,6 +61,10 @@ export default function TodayPage() {
   const [showTaskBreakdown, setShowTaskBreakdown] = useState(false);
   const [breakdownTaskName, setBreakdownTaskName] = useState('');
 
+  // Warnings and guidance dismissal state
+  const [dismissedWarningId, setDismissedWarningId] = useState<string | null>(null);
+  const [dismissedGuidance, setDismissedGuidance] = useState(false);
+
   // Track which tasks have already celebrated (to prevent duplicate celebrations)
   const celebratedTasksRef = useRef<Set<string>>(new Set());
 
@@ -65,8 +74,35 @@ export default function TodayPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getAllTaskProgress, selectedDate, logs]);
 
-  // Get greeting based on current progress (must be before any conditional returns)
+  // Calculate warnings for weekly tasks (only show on today)
   const isTodaySelected = isToday(selectedDate);
+  const warnings = useMemo(() => {
+    if (!isTodaySelected || !settings.showPaceWarnings) return [];
+    return getTaskWarnings(tasks, logs, selectedDate);
+  }, [tasks, logs, selectedDate, isTodaySelected, settings.showPaceWarnings]);
+
+  // Create warning map for easy lookup
+  const warningMap = useMemo(() => {
+    const map = new Map<string, { severity: typeof warnings[0]['severity']; message: string }>();
+    for (const warning of warnings) {
+      map.set(warning.taskId, { severity: warning.severity, message: warning.message });
+    }
+    return map;
+  }, [warnings]);
+
+  // Get top warning to display (if not dismissed)
+  const topWarning = useMemo(() => {
+    const nonDismissedWarnings = warnings.filter(w => w.taskId !== dismissedWarningId);
+    return nonDismissedWarnings[0] || null;
+  }, [warnings, dismissedWarningId]);
+
+  // Calculate task recommendation (only show on today and if guidance enabled)
+  const recommendation = useMemo(() => {
+    if (!isTodaySelected || !settings.showTaskGuidance || dismissedGuidance) return null;
+    return getTaskRecommendation(taskProgress, warnings, selectedDate);
+  }, [taskProgress, warnings, selectedDate, isTodaySelected, settings.showTaskGuidance, dismissedGuidance]);
+
+  // Get greeting based on current progress (must be before any conditional returns)
   const greeting = useMemo(() => {
     if (!isTodaySelected) return null;
     return getGreeting(taskProgress);
@@ -145,6 +181,36 @@ export default function TodayPage() {
   const handleUndo = (taskId: string): boolean => {
     return undoLastLog(taskId, selectedDate);
   };
+
+  // Handle recommendation actions
+  const handleRecommendationStartTimer = useCallback(() => {
+    if (!recommendation) return;
+    const task = tasks.find(t => t.id === recommendation.taskId);
+    if (task) {
+      startTimer(task.id, task.name, 'STOPWATCH', task.pomodoro_defaults);
+      router.push('/timer');
+    }
+  }, [recommendation, tasks, startTimer, router]);
+
+  const handleRecommendationQuickAdd = useCallback((amount: number) => {
+    if (!recommendation) return;
+    handleQuickAdd(
+      recommendation.taskId,
+      amount,
+      recommendation.taskName,
+      recommendation.isHabit
+    );
+  }, [recommendation]);
+
+  const handleDismissGuidance = useCallback(() => {
+    setDismissedGuidance(true);
+  }, []);
+
+  const handleDismissWarning = useCallback(() => {
+    if (topWarning) {
+      setDismissedWarningId(topWarning.taskId);
+    }
+  }, [topWarning]);
 
   // Keyboard shortcuts (after handlers are defined)
   useKeyboardShortcuts({
@@ -246,36 +312,68 @@ export default function TodayPage() {
         <DailyProgressRing progress={taskProgress} />
       )}
 
+      {/* Pace Warning Banner */}
+      {topWarning && (
+        <PaceWarningBanner
+          warning={topWarning}
+          onDismiss={handleDismissWarning}
+        />
+      )}
+
+      {/* Task Guidance Card */}
+      {recommendation && !recommendation.isHabit && (
+        <TaskGuidanceCard
+          recommendation={recommendation}
+          onStartTimer={handleRecommendationStartTimer}
+          onQuickAdd={handleRecommendationQuickAdd}
+          onDismiss={handleDismissGuidance}
+          habitUnit={tasks.find(t => t.id === recommendation.taskId)?.habit_unit}
+        />
+      )}
+
       {/* Task List */}
       <div className={styles.taskList}>
         {taskProgress.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No active tasks</p>
-            <Button variant="outline" onClick={() => router.push('/settings')}>
+            <h3>No active tasks</h3>
+            <p>Create tasks to track your effort and build productive habits.</p>
+            <Button variant="default" onClick={() => router.push('/settings?new=true')}>
               Create your first task
             </Button>
           </div>
         ) : (
-          taskProgress.map((tp) => (
-            <TaskCard
-              key={tp.task.id}
-              taskProgress={tp}
-              onQuickAdd={(amount, note) => handleQuickAdd(tp.task.id, amount, tp.task.name, tp.task.task_type === 'HABIT', note)}
-              onStartTimer={() =>
-                handleStartTimer(
-                  tp.task.id,
-                  tp.task.name,
-                  tp.task.pomodoro_defaults
-                )
-              }
-              onUndo={() => handleUndo(tp.task.id)}
-              canUndo={canUndoTask(tp.task.id)}
-              onOpenBreakdown={() => {
-                setBreakdownTaskName(tp.task.name);
-                setShowTaskBreakdown(true);
-              }}
-            />
-          ))
+          taskProgress.map((tp) => {
+            const warning = warningMap.get(tp.task.id);
+            const isWeeklyTask = tp.task.quota_type === 'WEEKLY';
+            const dailyTarget = isWeeklyTask && isTodaySelected && settings.showTaskGuidance
+              ? calculateDailyTarget(tp.task, tp, selectedDate)
+              : undefined;
+
+            return (
+              <TaskCard
+                key={tp.task.id}
+                taskProgress={tp}
+                onQuickAdd={(amount, note) => handleQuickAdd(tp.task.id, amount, tp.task.name, tp.task.task_type === 'HABIT', note)}
+                onStartTimer={() =>
+                  handleStartTimer(
+                    tp.task.id,
+                    tp.task.name,
+                    tp.task.pomodoro_defaults
+                  )
+                }
+                onUndo={() => handleUndo(tp.task.id)}
+                canUndo={canUndoTask(tp.task.id)}
+                onOpenBreakdown={() => {
+                  setBreakdownTaskName(tp.task.name);
+                  setShowTaskBreakdown(true);
+                }}
+                warningSeverity={warning?.severity}
+                warningMessage={warning?.message}
+                dailyTarget={dailyTarget}
+                showDailyTarget={isWeeklyTask && settings.showTaskGuidance}
+              />
+            );
+          })
         )}
       </div>
 

@@ -19,6 +19,8 @@ import {
   Volume2,
   Vibrate,
   ArrowUpDown,
+  AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { useTaskStore, selectActiveTasks, selectArchivedTasks } from '@/stores/taskStore';
 import { Task, Priority, QuotaType, TaskType, PomodoroDefaults } from '@/types';
@@ -554,6 +556,44 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        {/* Pace Warnings Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <AlertTriangle size={16} />
+              <span className={styles.taskName}>Pace Warnings</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Warn when behind on weekly quota targets
+            </div>
+          </div>
+          <Switch
+            checked={settings.showPaceWarnings}
+            onCheckedChange={(checked) =>
+              updateSettings({ showPaceWarnings: checked })
+            }
+          />
+        </div>
+
+        {/* Task Guidance Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <Sparkles size={16} />
+              <span className={styles.taskName}>Task Guidance</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Suggest which task to work on next
+            </div>
+          </div>
+          <Switch
+            checked={settings.showTaskGuidance}
+            onCheckedChange={(checked) =>
+              updateSettings({ showTaskGuidance: checked })
+            }
+          />
+        </div>
 
         {/* Push Notifications Toggle */}
         {isNotificationSupported() && (

@@ -1,0 +1,123 @@
+.card {
+  background: rgb(var(--brand-light-50));
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--stroke-weak);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.icon {
+  color: rgb(var(--brand-light-1000));
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--brand-light-1000));
+}
+
+.dismissButton {
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+}
+
+.dismissButton:hover {
+  opacity: 1;
+}
+
+.content {
+  margin-bottom: var(--space-3);
+}
+
+.taskName {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgb(var(--text-strong));
+  margin: 0 0 var(--space-1) 0;
+}
+
+.target {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--brand-light-1000));
+  margin: 0 0 var(--space-1) 0;
+  font-family: var(--font-mono);
+}
+
+.reason {
+  font-size: 0.8rem;
+  color: rgb(var(--text-weak));
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.primaryAction {
+  flex: 1;
+}
+
+.secondaryAction {
+  flex-shrink: 0;
+}
+
+/* Dark mode */
+:global(html.dark) .card {
+  background: rgb(var(--brand-dark-50));
+}
+
+:global(html.dark) .icon,
+:global(html.dark) .label,
+:global(html.dark) .target {
+  color: rgb(var(--brand-dark-1000));
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(html:not(.light):not(.dark)) .card {
+    background: rgb(var(--brand-dark-50));
+  }
+
+  :global(html:not(.light):not(.dark)) .icon,
+  :global(html:not(.light):not(.dark)) .label,
+  :global(html:not(.light):not(.dark)) .target {
+    color: rgb(var(--brand-dark-1000));
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .card {
+    padding: var(--space-3);
+  }
+
+  .taskName {
+    font-size: 1rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .primaryAction,
+  .secondaryAction {
+    width: 100%;
+  }
+}

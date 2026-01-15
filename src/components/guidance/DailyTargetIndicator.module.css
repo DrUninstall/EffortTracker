@@ -1,0 +1,30 @@
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: rgb(var(--text-weak));
+  padding: 2px 6px;
+  background: rgb(var(--fill-weak));
+  border-radius: var(--radius-sm);
+  cursor: help;
+}
+
+.icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.text {
+  white-space: nowrap;
+}
+
+/* Hover state */
+.indicator:hover {
+  color: rgb(var(--text-brand));
+}
+
+.indicator:hover .icon {
+  opacity: 1;
+}

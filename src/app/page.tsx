@@ -45,10 +45,8 @@ export default function TodayPage() {
     addLog,
     undoLastLog,
     logs,
-    tasks,
     settings,
     isHydrated,
-    settings,
   } = useTaskStore();
 
   const { startTimer } = useTimerStore();

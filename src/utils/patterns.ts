@@ -234,7 +234,7 @@ function generateRecommendation(patterns: {
   }
 
   if (parts.length === 1) {
-    return 'Keep doing what you're doing! Track more sessions to discover patterns.';
+    return "Keep doing what you're doing! Track more sessions to discover patterns.";
   }
 
   return parts.join(' ') + '. Try to replicate these conditions.';

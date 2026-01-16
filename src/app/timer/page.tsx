@@ -53,6 +53,12 @@ export default function TimerPage() {
   const [displayTime, setDisplayTime] = useState(0);
   const rafRef = useRef<number>();
 
+  // Hormozi: Post-session reflection state
+  const [qualityRating, setQualityRating] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [energyLevel, setEnergyLevel] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [outcomeCount, setOutcomeCount] = useState<string>('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   // Get task progress for quota context
   const taskProgress = useMemo(() => {
     if (!taskId || !isHydrated) return null;

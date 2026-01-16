@@ -32,10 +32,20 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   soundEnabled: true, // Sounds ON by default
   vibrationEnabled: true, // Haptics ON by default
+  // Hormozi features (default to off for progressive disclosure)
+  show_volume_metrics: false,
+  show_focus_score: false,
+  enable_pattern_detection: false,
+  enable_post_session_reflection: false,
+  effort_philosophy: 'balanced',
+  show_sophistication_level: false,
+  // Notifications and reminders
   notificationsEnabled: false, // Notifications OFF by default (requires permission)
   reminderIntervalMinutes: 30, // Default 30 minute reminders
+  // Priority ranking
   enablePriorityRanking: true, // Priority ranking ON by default
   showRankingOnboarding: true, // Show onboarding for new users
+  // Pacing and guidance
   showPaceWarnings: true, // Show pace warnings for weekly tasks
   showTaskGuidance: true, // Show "work on next" recommendations
 };
@@ -51,6 +61,9 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
+    track_outcomes: true,
+    outcome_label: 'modules',
+    outcome_target: 35, // weekly target
   },
   {
     name: 'Reading',
@@ -61,6 +74,8 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
+    track_outcomes: true,
+    outcome_label: 'pages',
   },
   {
     name: 'Workout',
@@ -71,6 +86,8 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
+    track_outcomes: true,
+    outcome_label: 'reps',
   },
   {
     name: 'Water Intake',
@@ -100,7 +117,20 @@ interface TaskState {
   unarchiveTask: (id: string) => void;
 
   // Logging
-  addLog: (taskId: string, minutes: number, source: LogSource, date?: string, count?: number, note?: string) => string;
+  addLog: (
+    taskId: string,
+    minutes: number,
+    source: LogSource,
+    date?: string,
+    countOrMetadata?: number | {
+      outcome_count?: number;
+      quality_rating?: 1 | 2 | 3 | 4 | 5;
+      energy_level?: 1 | 2 | 3 | 4 | 5;
+      context_tags?: string[];
+      notes?: string;
+    },
+    note?: string
+  ) => string;
   undoLastLog: (taskId: string, date: string) => boolean;
 
   // Date selection
@@ -181,10 +211,26 @@ export const useTaskStore = create<TaskState>()(
         get().updateTask(id, { is_archived: false });
       },
 
-      addLog: (taskId, minutes, source, date, count, note) => {
+      addLog: (taskId, minutes, source, date, countOrMetadata, note) => {
         const id = generateUUID();
         const task = get().tasks.find((t) => t.id === taskId);
         const isHabit = task?.task_type === 'HABIT';
+
+        // Handle backward compatibility: countOrMetadata can be either a number or an object
+        let count: number | undefined;
+        let metadata: {
+          outcome_count?: number;
+          quality_rating?: 1 | 2 | 3 | 4 | 5;
+          energy_level?: 1 | 2 | 3 | 4 | 5;
+          context_tags?: string[];
+          notes?: string;
+        } | undefined;
+
+        if (typeof countOrMetadata === 'number') {
+          count = countOrMetadata;
+        } else if (typeof countOrMetadata === 'object') {
+          metadata = countOrMetadata;
+        }
 
         const log: IncrementLog = {
           id,
@@ -194,7 +240,15 @@ export const useTaskStore = create<TaskState>()(
           count: isHabit ? (count || 1) : undefined, // count for habits
           source,
           created_at: Date.now(),
-          note: note || undefined, // optional context note
+          // Hormozi enhancements
+          outcome_count: metadata?.outcome_count,
+          outcome_unit: task?.outcome_label, // Auto-fill from task
+          quality_rating: metadata?.quality_rating,
+          energy_level: metadata?.energy_level,
+          context_tags: metadata?.context_tags,
+          notes: metadata?.notes,
+          // Simple note field (for backward compatibility)
+          note: note || undefined,
         };
         set((state) => ({ logs: [...state.logs, log] }));
         return id;
@@ -368,7 +422,7 @@ export const useTaskStore = create<TaskState>()(
       exportData: () => {
         const { tasks, logs, settings } = get();
         return {
-          version: '1.1.0', // Bumped for habit support
+          version: '1.1.0', // Bumped for Hormozi enhancements and habit support
           exportedAt: Date.now(),
           tasks,
           logs,
@@ -377,14 +431,18 @@ export const useTaskStore = create<TaskState>()(
       },
 
       importData: (data) => {
-        if (!['1.0.0', '1.1.0'].includes(data.version)) {
+        // Handle version migrations
+        const validVersions = ['1.0.0', '1.1.0'];
+        if (!validVersions.includes(data.version)) {
           console.warn('Unknown export version:', data.version);
         }
-        // Normalize imported tasks - ensure task_type exists
+
+        // Normalize imported tasks - ensure task_type exists and handle migrations
         const normalizedTasks = data.tasks.map((task: Task) => ({
           ...task,
           task_type: task.task_type || 'TIME',
         }));
+
         set({
           tasks: normalizedTasks,
           logs: data.logs,

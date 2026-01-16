@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useTaskStore } from '@/stores/taskStore';
 import { getToday, getDaysAgo } from '@/utils/date';
@@ -16,6 +16,14 @@ interface DayCell {
   completionPercent: number;
   tasksCompleted: number;
   totalTasks: number;
+  isInRange: boolean;
+}
+
+interface CalendarHeatMapProps {
+  selectedRange?: {
+    start: string;
+    end: string;
+  };
 }
 
 // Format date for tooltip
@@ -28,10 +36,25 @@ function formatDateForTooltip(dateStr: string): string {
   });
 }
 
-export function CalendarHeatMap() {
+export function CalendarHeatMap({ selectedRange }: CalendarHeatMapProps) {
   const { getAllTaskProgress, logs, isHydrated } = useTaskStore();
   const [hoveredDay, setHoveredDay] = useState<DayCell | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [animationKey, setAnimationKey] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Trigger re-animation when range changes
+  useEffect(() => {
+    setAnimationKey((k) => k + 1);
+  }, [selectedRange?.start, selectedRange?.end]);
+
+  // Auto-scroll to show the selected range
+  useEffect(() => {
+    if (scrollRef.current && selectedRange) {
+      // Scroll to the end (most recent dates) when range changes
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [selectedRange]);
 
   // Generate heat map data
   const heatMapData = useMemo((): DayCell[][] => {
@@ -45,6 +68,11 @@ export function CalendarHeatMap() {
       const date = getDaysAgo(i, today);
       const dayProgress = getAllTaskProgress(date);
 
+      // Check if date is in selected range
+      const isInRange = selectedRange
+        ? date >= selectedRange.start && date <= selectedRange.end
+        : true;
+
       if (dayProgress.length === 0) {
         cells.push({
           date,
@@ -52,6 +80,7 @@ export function CalendarHeatMap() {
           completionPercent: 0,
           tasksCompleted: 0,
           totalTasks: 0,
+          isInRange,
         });
       } else {
         const completedCount = dayProgress.filter((p) => p.isDone).length;
@@ -78,6 +107,7 @@ export function CalendarHeatMap() {
           completionPercent,
           tasksCompleted: completedCount,
           totalTasks: totalCount,
+          isInRange,
         });
       }
     }
@@ -90,7 +120,16 @@ export function CalendarHeatMap() {
 
     return weeks;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getAllTaskProgress, isHydrated, logs]);
+  }, [getAllTaskProgress, isHydrated, logs, selectedRange]);
+
+  // Count days in range with activity
+  const rangeStats = useMemo(() => {
+    const allCells = heatMapData.flat();
+    const inRangeCells = allCells.filter((c) => c.isInRange);
+    const activeDays = inRangeCells.filter((c) => c.intensity > 0).length;
+    const perfectDays = inRangeCells.filter((c) => c.intensity === 4).length;
+    return { total: inRangeCells.length, activeDays, perfectDays };
+  }, [heatMapData]);
 
   const handleMouseEnter = (day: DayCell, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -111,24 +150,38 @@ export function CalendarHeatMap() {
 
   return (
     <div className={styles.container}>
-      <h3 className={styles.title}>Activity</h3>
+      <div className={styles.header}>
+        <h3 className={styles.title}>Activity</h3>
+        {selectedRange && (
+          <span className={styles.rangeStats}>
+            {rangeStats.activeDays}/{rangeStats.total} days active
+            {rangeStats.perfectDays > 0 && ` (${rangeStats.perfectDays} perfect)`}
+          </span>
+        )}
+      </div>
 
       <div className={styles.heatMapWrapper}>
-        <div className={styles.heatMap}>
+        <div className={styles.heatMap} ref={scrollRef}>
           {heatMapData.map((week, weekIndex) => (
             <div key={weekIndex} className={styles.week}>
               {week.map((day, dayIndex) => (
                 <motion.div
-                  key={day.date}
+                  key={`${day.date}-${animationKey}`}
                   className={styles.day}
                   data-intensity={day.intensity}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
+                  data-in-range={day.isInRange}
+                  initial={day.isInRange ? { scale: 0.5, opacity: 0.3 } : { scale: 1, opacity: 1 }}
+                  animate={{
+                    scale: 1,
+                    opacity: day.isInRange ? 1 : 0.35,
+                  }}
                   transition={{
                     type: 'spring',
-                    stiffness: 300,
+                    stiffness: 400,
                     damping: 25,
-                    delay: (weekIndex * 7 + dayIndex) * 0.005,
+                    delay: day.isInRange
+                      ? (weekIndex * 7 + dayIndex) * 0.008
+                      : 0,
                   }}
                   onMouseEnter={(e) => handleMouseEnter(day, e)}
                   onMouseLeave={handleMouseLeave}
@@ -173,6 +226,9 @@ export function CalendarHeatMap() {
             </span>
           ) : (
             <span className={styles.tooltipStats}>No activity</span>
+          )}
+          {!hoveredDay.isInRange && selectedRange && (
+            <span className={styles.tooltipOutOfRange}>Outside selected range</span>
           )}
         </div>
       )}

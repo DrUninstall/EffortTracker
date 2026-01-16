@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTaskStore } from '@/stores/taskStore';
 import { Task, IncrementLog, TaskHistoryStats } from '@/types';
 import { CalendarHeatMap } from '@/components/history/CalendarHeatMap';
 import { WeeklySummary } from '@/components/history/WeeklySummary';
 import { EffortChart } from '@/components/history/EffortChart';
-import { Button } from '@/components/ui/button';
+import { AnimatedValue } from '@/components/ui/AnimatedValue';
 import {
   Select,
   SelectContent,
@@ -25,6 +25,31 @@ import {
   formatDateDisplayFull,
 } from '@/utils/date';
 import styles from './page.module.css';
+
+// Effort tier thresholds (in minutes)
+type EffortTier = 'bronze' | 'silver' | 'gold' | 'diamond';
+
+function getEffortTier(minutes: number): EffortTier {
+  if (minutes >= 1200) return 'diamond'; // 20+ hours
+  if (minutes >= 300) return 'gold';     // 5+ hours
+  if (minutes >= 60) return 'silver';    // 1+ hour
+  return 'bronze';
+}
+
+function getHitRateTier(rate: number): EffortTier {
+  if (rate >= 90) return 'diamond';
+  if (rate >= 75) return 'gold';
+  if (rate >= 50) return 'silver';
+  return 'bronze';
+}
+
+// Format minutes for animated display (returns just the number part)
+function formatMinutesValue(minutes: number): { value: number; unit: string } {
+  if (minutes >= 60) {
+    return { value: minutes / 60, unit: 'h' };
+  }
+  return { value: minutes, unit: 'm' };
+}
 
 type DateRangeOption = '7' | '30' | '365' | 'custom';
 
@@ -83,6 +108,24 @@ export default function HistoryPage() {
 
     return stats;
   }, [activeTasks, logs, dateRange]);
+
+  // Sort tasks by total effort (descending) for the dropdown
+  const sortedTasks = useMemo(() => {
+    return [...activeTasks].sort((a, b) => {
+      const statsA = taskStats.get(a.id);
+      const statsB = taskStats.get(b.id);
+
+      // Get effort value: totalMinutes for TIME tasks, totalCount for HABIT tasks
+      const effortA = a.task_type === 'HABIT'
+        ? (statsA?.totalCount || 0)
+        : (statsA?.totalMinutes || 0);
+      const effortB = b.task_type === 'HABIT'
+        ? (statsB?.totalCount || 0)
+        : (statsB?.totalMinutes || 0);
+
+      return effortB - effortA; // Descending order
+    });
+  }, [activeTasks, taskStats]);
 
   // Filtered stats
   const filteredStats = useMemo(() => {
@@ -159,7 +202,7 @@ export default function HistoryPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All tasks</SelectItem>
-            {activeTasks.map((task) => (
+            {sortedTasks.map((task) => (
               <SelectItem key={task.id} value={task.id}>
                 {task.name}
               </SelectItem>
@@ -170,38 +213,81 @@ export default function HistoryPage() {
 
       {/* Summary */}
       <div className={styles.summary}>
-        {totals.hasTimeStats && (
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Total Effort</span>
-            <span className={styles.summaryValue}>
-              {formatMinutes(totals.totalMinutes)}
-            </span>
-          </div>
-        )}
+        {totals.hasTimeStats && (() => {
+          const { value, unit } = formatMinutesValue(totals.totalMinutes);
+          const tier = getEffortTier(totals.totalMinutes);
+          return (
+            <motion.div
+              className={styles.summaryCard}
+              data-tier={tier}
+              key={`effort-${rangeOption}`}
+              initial={{ scale: 0.95, opacity: 0.5 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            >
+              <span className={styles.summaryLabel}>Total Effort</span>
+              <span className={styles.summaryValue}>
+                <AnimatedValue
+                  value={value}
+                  format={(v) => unit === 'h' ? v.toFixed(1) : Math.round(v).toString()}
+                />
+                {unit}
+              </span>
+              {tier !== 'bronze' && (
+                <span className={styles.tierBadge} data-tier={tier}>
+                  {tier === 'diamond' ? '💎' : tier === 'gold' ? '🥇' : '🥈'}
+                </span>
+              )}
+            </motion.div>
+          );
+        })()}
         {totals.hasHabitStats && (
-          <div className={styles.summaryCard}>
+          <motion.div
+            className={styles.summaryCard}
+            key={`completions-${rangeOption}`}
+            initial={{ scale: 0.95, opacity: 0.5 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.05 }}
+          >
             <span className={styles.summaryLabel}>Completions</span>
             <span className={styles.summaryValue}>
-              {totals.totalCompletions}
+              <AnimatedValue value={totals.totalCompletions} />
             </span>
-          </div>
+          </motion.div>
         )}
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>Avg Hit Rate</span>
-          <span className={styles.summaryValue}>
-            {Math.round(totals.avgHitRate)}%
-          </span>
-        </div>
+        {(() => {
+          const tier = getHitRateTier(totals.avgHitRate);
+          return (
+            <motion.div
+              className={styles.summaryCard}
+              data-tier={tier}
+              key={`hitrate-${rangeOption}`}
+              initial={{ scale: 0.95, opacity: 0.5 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
+            >
+              <span className={styles.summaryLabel}>Avg Hit Rate</span>
+              <span className={styles.summaryValue}>
+                <AnimatedValue value={totals.avgHitRate} format={(v) => Math.round(v).toString()} />%
+              </span>
+              {tier !== 'bronze' && (
+                <span className={styles.tierBadge} data-tier={tier}>
+                  {tier === 'diamond' ? '💎' : tier === 'gold' ? '🥇' : '🥈'}
+                </span>
+              )}
+            </motion.div>
+          );
+        })()}
       </div>
 
       {/* Weekly Summary */}
       <WeeklySummary />
 
       {/* Calendar Heat Map */}
-      <CalendarHeatMap />
+      <CalendarHeatMap selectedRange={dateRange} />
 
       {/* Effort Chart */}
-      <EffortChart />
+      <EffortChart periodDays={parseInt(rangeOption) || 7} />
 
       {/* Task Stats */}
       <div className={styles.statsGrid}>

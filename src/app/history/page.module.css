@@ -58,6 +58,7 @@
 }
 
 .summaryCard {
+  position: relative;
   background-color: var(--card);
   border: none;
   border-radius: var(--radius);
@@ -66,6 +67,39 @@
   flex-direction: column;
   gap: var(--space-1);
   box-shadow: var(--stroke-weak);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+/* Tier-based visual progression */
+.summaryCard[data-tier='silver'] {
+  background: linear-gradient(135deg, var(--card) 0%, rgb(var(--grey-light-50)) 100%);
+  box-shadow: var(--stroke-weak), 0 0 0 1px rgba(192, 192, 192, 0.3);
+}
+
+.summaryCard[data-tier='gold'] {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(255, 215, 0, 0.08) 100%);
+  box-shadow: var(--stroke-weak), 0 0 0 1px rgba(255, 215, 0, 0.3), 0 4px 12px rgba(255, 215, 0, 0.1);
+}
+
+.summaryCard[data-tier='diamond'] {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(185, 242, 255, 0.12) 100%);
+  box-shadow: var(--stroke-weak), 0 0 0 1px rgba(100, 200, 255, 0.4), 0 4px 16px rgba(100, 200, 255, 0.15);
+}
+
+/* Dark mode tier adjustments */
+:global(html.dark) .summaryCard[data-tier='silver'] {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(192, 192, 192, 0.06) 100%);
+}
+
+:global(html.dark) .summaryCard[data-tier='gold'] {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(255, 215, 0, 0.1) 100%);
+  box-shadow: var(--stroke-weak), 0 0 0 1px rgba(255, 215, 0, 0.25), 0 4px 12px rgba(255, 215, 0, 0.08);
+}
+
+:global(html.dark) .summaryCard[data-tier='diamond'] {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(100, 200, 255, 0.1) 100%);
+  box-shadow: var(--stroke-weak), 0 0 0 1px rgba(100, 200, 255, 0.3), 0 4px 16px rgba(100, 200, 255, 0.1);
 }
 
 .summaryLabel {
@@ -78,6 +112,39 @@
   font-weight: 600;
   font-family: var(--font-mono);
   color: var(--foreground);
+  transition: all 0.3s ease;
+}
+
+/* Larger values for higher tiers */
+.summaryCard[data-tier='silver'] .summaryValue {
+  font-size: 1.625rem;
+}
+
+.summaryCard[data-tier='gold'] .summaryValue {
+  font-size: 1.75rem;
+  color: rgb(180, 140, 20);
+}
+
+.summaryCard[data-tier='diamond'] .summaryValue {
+  font-size: 1.875rem;
+  color: rgb(60, 160, 200);
+}
+
+:global(html.dark) .summaryCard[data-tier='gold'] .summaryValue {
+  color: rgb(255, 215, 100);
+}
+
+:global(html.dark) .summaryCard[data-tier='diamond'] .summaryValue {
+  color: rgb(140, 220, 255);
+}
+
+/* Tier badge */
+.tierBadge {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  font-size: 1rem;
+  opacity: 0.9;
 }
 
 /* Stats Grid */

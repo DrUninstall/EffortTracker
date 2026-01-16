@@ -7,11 +7,24 @@
   box-shadow: var(--stroke-weak);
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
 .title {
   font-size: 0.875rem;
   font-weight: 600;
   color: rgb(var(--text-strong));
-  margin: 0 0 var(--space-3) 0;
+  margin: 0;
+}
+
+.rangeStats {
+  font-size: 0.75rem;
+  color: rgb(var(--text-weak));
+  font-family: var(--font-mono);
 }
 
 .heatMapWrapper {
@@ -168,6 +181,13 @@ html.dark .legendCell[data-intensity="3"] {
 .tooltipStats {
   font-size: 0.6875rem;
   color: rgb(var(--text-weak));
+}
+
+.tooltipOutOfRange {
+  font-size: 0.625rem;
+  color: rgb(var(--text-weak));
+  font-style: italic;
+  opacity: 0.7;
 }
 
 /* Scrollbar styling */

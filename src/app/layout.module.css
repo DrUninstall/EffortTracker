@@ -9,6 +9,8 @@
   flex: 1;
   padding-bottom: 5rem; /* Space for bottom nav on mobile */
   overflow-x: hidden;
+  position: relative;
+  z-index: 1; /* Below bottom nav (z-index: 50) so scrollbar doesn't overlap */
 }
 
 /* Desktop: sidebar layout */

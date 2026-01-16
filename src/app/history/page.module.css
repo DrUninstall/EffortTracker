@@ -238,3 +238,8 @@
 .calibrationHint p {
   margin: 0;
 }
+
+/* Pattern Insights Section */
+.patternsSection {
+  margin-bottom: var(--space-4);
+}

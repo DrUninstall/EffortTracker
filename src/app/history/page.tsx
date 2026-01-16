@@ -8,6 +8,8 @@ import { CalendarHeatMap } from '@/components/history/CalendarHeatMap';
 import { WeeklySummary } from '@/components/history/WeeklySummary';
 import { EffortChart } from '@/components/history/EffortChart';
 import { AnimatedValue } from '@/components/ui/AnimatedValue';
+import { PatternInsights } from '@/components/insights/PatternInsights';
+import { getAllPatterns } from '@/utils/patterns';
 import {
   Select,
   SelectContent,
@@ -164,6 +166,11 @@ export default function HistoryPage() {
     return { totalMinutes, totalCompletions, avgHitRate, hasTimeStats: timeStats.length > 0, hasHabitStats: habitStats.length > 0 };
   }, [filteredStats, activeTasks]);
 
+  // Detect patterns from all rated sessions (Hormozi meta-learning)
+  const patterns = useMemo(() => {
+    return getAllPatterns(logs, tasks);
+  }, [logs, tasks]);
+
   if (!isHydrated) {
     return (
       <div className={styles.container}>
@@ -282,6 +289,24 @@ export default function HistoryPage() {
 
       {/* Weekly Summary */}
       <WeeklySummary />
+
+      {/* Pattern Insights - auto-detected from rated sessions */}
+      {patterns.length > 0 && (
+        <div className={styles.patternsSection}>
+          {patterns
+            .filter((p) => selectedTaskId === 'all' || p.task_id === selectedTaskId)
+            .map((pattern) => {
+              const task = tasks.find((t) => t.id === pattern.task_id);
+              return task ? (
+                <PatternInsights
+                  key={pattern.task_id}
+                  pattern={pattern}
+                  taskName={task.name}
+                />
+              ) : null;
+            })}
+        </div>
+      )}
 
       {/* Calendar Heat Map */}
       <CalendarHeatMap selectedRange={dateRange} />

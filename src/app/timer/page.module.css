@@ -203,6 +203,92 @@
   justify-content: flex-end;
 }
 
+/* Hormozi: Reflection sections */
+.reflectionSection {
+  margin-bottom: 1.25rem;
+}
+
+.reflectionLabel {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+/* Star rating */
+.starRating {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.starButton {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  padding: 0.25rem;
+}
+
+.starButton:hover {
+  opacity: 0.6;
+  transform: scale(1.1);
+}
+
+.starButton[data-active="true"] {
+  opacity: 1;
+}
+
+/* Energy slider */
+.energySlider {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.energyButton {
+  background-color: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 1.75rem;
+  cursor: pointer;
+  padding: 0.75rem;
+  transition: all 0.15s ease;
+  opacity: 0.5;
+}
+
+.energyButton:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.energyButton[data-active="true"] {
+  opacity: 1;
+  border-color: var(--primary);
+  background-color: var(--accent);
+}
+
+/* Outcome input */
+.outcomeInput {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.outcomeInput:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: var(--card);
+}
+
 @media (min-width: 768px) {
   .container {
     min-height: calc(100vh - 2rem);

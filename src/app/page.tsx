@@ -7,6 +7,8 @@ import { useTaskStore } from '@/stores/taskStore';
 import { useTimerStore } from '@/stores/timerStore';
 import { TaskCard } from '@/components/task/TaskCard';
 import { Button } from '@/components/ui/button';
+import { FocusScore } from '@/components/insights/FocusScore';
+import { PatternInsights } from '@/components/insights/PatternInsights';
 import {
   formatDateDisplay,
   getToday,
@@ -14,6 +16,8 @@ import {
   getDaysFromNow,
   isToday,
 } from '@/utils/date';
+import { calculateFocusScore } from '@/utils/allocation';
+import { detectPatterns, getAllPatterns } from '@/utils/patterns';
 import styles from './page.module.css';
 
 export default function TodayPage() {
@@ -25,6 +29,8 @@ export default function TodayPage() {
     addLog,
     undoLastLog,
     logs,
+    tasks,
+    settings,
     isHydrated,
   } = useTaskStore();
 
@@ -34,6 +40,19 @@ export default function TodayPage() {
   const taskProgress = useMemo(() => {
     return getAllTaskProgress(selectedDate);
   }, [getAllTaskProgress, selectedDate]);
+
+  // Calculate focus score for today (if today is selected)
+  const focusScore = useMemo(() => {
+    if (!isToday(selectedDate)) return null;
+    if (!settings.show_focus_score) return null;
+    return calculateFocusScore(selectedDate, logs, tasks);
+  }, [selectedDate, logs, tasks, settings.show_focus_score]);
+
+  // Get patterns for tasks that have enough data
+  const patterns = useMemo(() => {
+    if (!settings.enable_pattern_detection) return [];
+    return getAllPatterns(logs, tasks);
+  }, [logs, tasks, settings.enable_pattern_detection]);
 
   // Check if a task has recent logs (within 10 minutes) for undo
   const canUndoTask = (taskId: string): boolean => {
@@ -132,6 +151,22 @@ export default function TodayPage() {
           Add Task
         </Button>
       </header>
+
+      {/* Hormozi: Focus Score (only show for today) */}
+      {focusScore && <FocusScore score={focusScore} />}
+
+      {/* Hormozi: Pattern Insights (show top 2 patterns) */}
+      {patterns.slice(0, 2).map((pattern) => {
+        const task = tasks.find((t) => t.id === pattern.task_id);
+        if (!task) return null;
+        return (
+          <PatternInsights
+            key={pattern.task_id}
+            pattern={pattern}
+            taskName={task.name}
+          />
+        );
+      })}
 
       {/* Task List */}
       <div className={styles.taskList}>

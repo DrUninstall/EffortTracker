@@ -32,6 +32,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   soundEnabled: false,
   vibrationEnabled: false,
+  // Hormozi features (default to off for progressive disclosure)
+  show_volume_metrics: false,
+  show_focus_score: false,
+  enable_pattern_detection: false,
+  enable_post_session_reflection: false,
+  effort_philosophy: 'balanced',
+  show_sophistication_level: false,
 };
 
 // Demo tasks for first run
@@ -44,6 +51,9 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
+    track_outcomes: true,
+    outcome_label: 'modules',
+    outcome_target: 35, // weekly target
   },
   {
     name: 'Reading',
@@ -53,6 +63,8 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
+    track_outcomes: true,
+    outcome_label: 'pages',
   },
   {
     name: 'Workout',
@@ -62,6 +74,8 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
+    track_outcomes: true,
+    outcome_label: 'reps',
   },
 ];
 
@@ -80,7 +94,19 @@ interface TaskState {
   unarchiveTask: (id: string) => void;
 
   // Logging
-  addLog: (taskId: string, minutes: number, source: LogSource, date?: string) => string;
+  addLog: (
+    taskId: string,
+    minutes: number,
+    source: LogSource,
+    date?: string,
+    metadata?: {
+      outcome_count?: number;
+      quality_rating?: 1 | 2 | 3 | 4 | 5;
+      energy_level?: 1 | 2 | 3 | 4 | 5;
+      context_tags?: string[];
+      notes?: string;
+    }
+  ) => string;
   undoLastLog: (taskId: string, date: string) => boolean;
 
   // Date selection
@@ -156,8 +182,10 @@ export const useTaskStore = create<TaskState>()(
         get().updateTask(id, { is_archived: false });
       },
 
-      addLog: (taskId, minutes, source, date) => {
+      addLog: (taskId, minutes, source, date, metadata) => {
         const id = generateUUID();
+        const task = get().tasks.find((t) => t.id === taskId);
+
         const log: IncrementLog = {
           id,
           task_id: taskId,
@@ -165,6 +193,13 @@ export const useTaskStore = create<TaskState>()(
           minutes: Math.round(Math.max(0, minutes)), // Ensure positive integer
           source,
           created_at: Date.now(),
+          // Hormozi enhancements
+          outcome_count: metadata?.outcome_count,
+          outcome_unit: task?.outcome_label, // Auto-fill from task
+          quality_rating: metadata?.quality_rating,
+          energy_level: metadata?.energy_level,
+          context_tags: metadata?.context_tags,
+          notes: metadata?.notes,
         };
         set((state) => ({ logs: [...state.logs, log] }));
         return id;
@@ -252,7 +287,7 @@ export const useTaskStore = create<TaskState>()(
       exportData: () => {
         const { tasks, logs, settings } = get();
         return {
-          version: '1.0.0',
+          version: '1.1.0', // Bumped for Hormozi enhancements
           exportedAt: Date.now(),
           tasks,
           logs,
@@ -261,9 +296,14 @@ export const useTaskStore = create<TaskState>()(
       },
 
       importData: (data) => {
-        if (data.version !== '1.0.0') {
+        // Handle version migrations
+        const validVersions = ['1.0.0', '1.1.0'];
+        if (!validVersions.includes(data.version)) {
           console.warn('Unknown export version:', data.version);
         }
+
+        // No migration needed - new fields are optional
+        // Old data will work fine with undefined values
         set({
           tasks: data.tasks,
           logs: data.logs,

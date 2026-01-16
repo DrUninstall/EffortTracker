@@ -50,6 +50,12 @@ export default function TimerPage() {
   const [logMinutes, setLogMinutes] = useState(0);
   const rafRef = useRef<number>();
 
+  // Hormozi: Post-session reflection state
+  const [qualityRating, setQualityRating] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [energyLevel, setEnergyLevel] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [outcomeCount, setOutcomeCount] = useState<string>('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   // Update display time using requestAnimationFrame for smooth updates
   useEffect(() => {
     const updateDisplay = () => {
@@ -144,8 +150,34 @@ export default function TimerPage() {
   // Handle logging after stopwatch
   const handleLogConfirm = () => {
     if (taskId && logMinutes > 0) {
-      addLog(taskId, logMinutes, 'TIMER');
+      const task = tasks.find((t) => t.id === taskId);
+      const settings = useTaskStore.getState().settings;
+
+      // Build metadata object
+      const metadata: {
+        quality_rating?: 1 | 2 | 3 | 4 | 5;
+        energy_level?: 1 | 2 | 3 | 4 | 5;
+        outcome_count?: number;
+      } = {};
+
+      // Only include if user provided values or if enabled in settings
+      if (qualityRating) metadata.quality_rating = qualityRating;
+      if (energyLevel) metadata.energy_level = energyLevel;
+      if (outcomeCount && task?.track_outcomes) {
+        const count = parseInt(outcomeCount);
+        if (!isNaN(count) && count > 0) {
+          metadata.outcome_count = count;
+        }
+      }
+
+      addLog(taskId, logMinutes, 'TIMER', undefined, metadata);
     }
+
+    // Reset reflection state
+    setQualityRating(null);
+    setEnergyLevel(null);
+    setOutcomeCount('');
+    setShowAdvanced(false);
     setShowLogPrompt(false);
     resetTimer();
     router.push('/');
@@ -374,7 +406,7 @@ export default function TimerPage() {
         </Button>
       </div>
 
-      {/* Log Prompt Modal */}
+      {/* Log Prompt Modal - Enhanced with Hormozi reflection */}
       <AnimatePresence>
         {showLogPrompt && (
           <motion.div
@@ -389,10 +421,72 @@ export default function TimerPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
             >
-              <h2 className={styles.modalTitle}>Log Time?</h2>
+              <h2 className={styles.modalTitle}>Log Session</h2>
               <p className={styles.modalText}>
                 You spent <strong>{logMinutes} minutes</strong> on {taskName}.
               </p>
+
+              {/* Quality Rating (always shown) */}
+              <div className={styles.reflectionSection}>
+                <label className={styles.reflectionLabel}>
+                  How was this session?
+                </label>
+                <div className={styles.starRating}>
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      className={styles.starButton}
+                      data-active={qualityRating && rating <= qualityRating}
+                      onClick={() => setQualityRating(rating as 1 | 2 | 3 | 4 | 5)}
+                    >
+                      ⭐
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Energy Level (always shown) */}
+              <div className={styles.reflectionSection}>
+                <label className={styles.reflectionLabel}>
+                  Energy after session?
+                </label>
+                <div className={styles.energySlider}>
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={styles.energyButton}
+                      data-active={energyLevel === level}
+                      onClick={() => setEnergyLevel(level as 1 | 2 | 3 | 4 | 5)}
+                    >
+                      {level === 1 && '😴'}
+                      {level === 2 && '😐'}
+                      {level === 3 && '🙂'}
+                      {level === 4 && '😊'}
+                      {level === 5 && '⚡'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Outcome Count (if task tracks outcomes) */}
+              {tasks.find((t) => t.id === taskId)?.track_outcomes && (
+                <div className={styles.reflectionSection}>
+                  <label className={styles.reflectionLabel}>
+                    {tasks.find((t) => t.id === taskId)?.outcome_label || 'Outcomes'} completed?
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={styles.outcomeInput}
+                    value={outcomeCount}
+                    onChange={(e) => setOutcomeCount(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              )}
+
               <div className={styles.modalActions}>
                 <Button variant="outline" onClick={handleLogDiscard}>
                   Discard

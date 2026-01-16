@@ -67,13 +67,13 @@ export function FocusScore({ score }: FocusScoreProps) {
 
       {status === 'poor' && (
         <div className={styles.warning}>
-          You're spreading too thin. Focus on CORE priorities.
+          You&apos;re spreading too thin. Focus on CORE priorities.
         </div>
       )}
 
       {status === 'excellent' && (
         <div className={styles.praise}>
-          Great focus today! You're crushing your core work.
+          Great focus today! You&apos;re crushing your core work.
         </div>
       )}
     </div>

@@ -217,7 +217,7 @@ export default function TodayPage() {
       recommendation.taskName,
       recommendation.isHabit
     );
-  }, [recommendation]);
+  }, [recommendation, handleQuickAdd]);
 
   const handleDismissGuidance = useCallback(() => {
     setDismissedGuidance(true);

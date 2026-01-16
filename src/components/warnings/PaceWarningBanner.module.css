@@ -1,0 +1,143 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.taskName {
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.viewButton {
+  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+  height: auto;
+}
+
+.dismissButton {
+  width: 28px;
+  height: 28px;
+  opacity: 0.7;
+}
+
+.dismissButton:hover {
+  opacity: 1;
+}
+
+/* Severity colors */
+.low {
+  background: rgb(var(--amber-light-50));
+  color: rgb(var(--amber-light-1000));
+}
+
+.medium {
+  background: rgb(var(--amber-light-200));
+  color: rgb(var(--amber-light-1000));
+}
+
+.high {
+  background: rgb(var(--red-light-200));
+  color: rgb(var(--red-light-1000));
+}
+
+.critical {
+  background: rgb(var(--red-light-200));
+  color: rgb(var(--red-light-1000));
+  animation: pulse-bg 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* Dark mode */
+:global(html.dark) .low,
+:global(html.dark) .medium {
+  background: rgb(var(--amber-dark-50));
+  color: rgb(var(--amber-dark-1000));
+}
+
+:global(html.dark) .high,
+:global(html.dark) .critical {
+  background: rgb(var(--red-dark-50));
+  color: rgb(var(--red-dark-1000));
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(html:not(.light):not(.dark)) .low,
+  :global(html:not(.light):not(.dark)) .medium {
+    background: rgb(var(--amber-dark-50));
+    color: rgb(var(--amber-dark-1000));
+  }
+
+  :global(html:not(.light):not(.dark)) .high,
+  :global(html:not(.light):not(.dark)) .critical {
+    background: rgb(var(--red-dark-50));
+    color: rgb(var(--red-dark-1000));
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .banner {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .text {
+    gap: 0;
+  }
+
+  .message {
+    font-size: 0.75rem;
+  }
+
+  .viewButton {
+    display: none;
+  }
+}

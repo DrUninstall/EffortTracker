@@ -148,6 +148,21 @@ export function isFuture(date: string): boolean {
 }
 
 /**
+ * Get the day of week (0-6, Sunday=0) for a date
+ */
+export function getDayOfWeek(date: string): number {
+  return parseDate(date).getDay();
+}
+
+/**
+ * Get the day of week name for a date
+ */
+export function getDayOfWeekName(date: string): string {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[getDayOfWeek(date)];
+}
+
+/**
  * Get all ISO weeks between start and end dates
  * Returns array of { start, end } for each week
  */

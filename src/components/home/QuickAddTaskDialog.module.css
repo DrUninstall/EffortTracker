@@ -1,0 +1,199 @@
+/* QuickAddTaskDialog - Quick task creation dialog */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: var(--space-4);
+}
+
+@media (min-width: 480px) {
+  .overlay {
+    align-items: center;
+  }
+}
+
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  max-height: 85vh;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-overlay);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(var(--text-strong));
+  margin: 0;
+}
+
+.closeButton {
+  margin-right: calc(-1 * var(--space-2));
+}
+
+.content {
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+/* Presets Grid */
+.presets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.presetButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: none;
+  background: rgb(var(--fill-weak));
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out-cubic),
+              transform var(--duration-fast) var(--ease-out-cubic);
+}
+
+.presetButton:hover {
+  background: rgb(var(--grey-light-100));
+}
+
+html.dark .presetButton:hover {
+  background: rgb(var(--grey-dark-100));
+}
+
+.presetButton:active {
+  transform: scale(0.97);
+}
+
+.presetButton svg {
+  color: var(--primary);
+}
+
+.presetName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--text-strong));
+}
+
+.presetQuota {
+  font-size: 0.75rem;
+  color: rgb(var(--text-weak));
+}
+
+/* Custom Toggle */
+.customToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  background: transparent;
+  border-radius: var(--radius);
+  color: rgb(var(--text-weak));
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out-cubic),
+              color var(--duration-fast) var(--ease-out-cubic);
+}
+
+.customToggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Custom Form */
+.customForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.formLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgb(var(--text-weak));
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.quotaInput {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quotaInput input {
+  width: 100%;
+}
+
+.quotaUnit {
+  font-size: 0.8125rem;
+  color: rgb(var(--text-weak));
+  flex-shrink: 0;
+}
+
+.formActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+/* Footer */
+.footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+
+.advancedLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: 0.8125rem;
+  color: rgb(var(--text-weak));
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out-cubic);
+}
+
+.advancedLink:hover {
+  color: var(--primary);
+}

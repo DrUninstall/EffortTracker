@@ -30,8 +30,8 @@ const DEFAULT_POMODORO = {
 const DEFAULT_SETTINGS: AppSettings = {
   weekStartDay: 1, // Monday
   theme: 'system',
-  soundEnabled: false,
-  vibrationEnabled: false,
+  soundEnabled: true, // Sounds ON by default
+  vibrationEnabled: true, // Haptics ON by default
   // Hormozi features (default to off for progressive disclosure)
   show_volume_metrics: false,
   show_focus_score: false,
@@ -39,6 +39,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   enable_post_session_reflection: false,
   effort_philosophy: 'balanced',
   show_sophistication_level: false,
+  // Notifications and reminders
+  notificationsEnabled: false, // Notifications OFF by default (requires permission)
+  reminderIntervalMinutes: 30, // Default 30 minute reminders
+  // Priority ranking
+  enablePriorityRanking: true, // Priority ranking ON by default
+  showRankingOnboarding: true, // Show onboarding for new users
+  // Pacing and guidance
+  showPaceWarnings: true, // Show pace warnings for weekly tasks
+  showTaskGuidance: true, // Show "work on next" recommendations
 };
 
 // Demo tasks for first run
@@ -47,6 +56,7 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     name: 'EA Study',
     priority: 'CORE',
     quota_type: 'DAILY',
+    task_type: 'TIME',
     daily_quota_minutes: 240,
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
@@ -59,6 +69,7 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     name: 'Reading',
     priority: 'IMPORTANT',
     quota_type: 'DAILY',
+    task_type: 'TIME',
     daily_quota_minutes: 10,
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
@@ -70,12 +81,24 @@ const DEMO_TASKS: Omit<Task, 'id' | 'created_at'>[] = [
     name: 'Workout',
     priority: 'IMPORTANT',
     quota_type: 'DAILY',
+    task_type: 'TIME',
     daily_quota_minutes: 60,
     allow_carryover: false,
     pomodoro_defaults: DEFAULT_POMODORO,
     is_archived: false,
     track_outcomes: true,
     outcome_label: 'reps',
+  },
+  {
+    name: 'Water Intake',
+    priority: 'IMPORTANT',
+    quota_type: 'DAILY',
+    task_type: 'HABIT',
+    habit_quota_count: 8,
+    habit_unit: 'glasses',
+    allow_carryover: false,
+    pomodoro_defaults: DEFAULT_POMODORO,
+    is_archived: false,
   },
 ];
 
@@ -99,13 +122,14 @@ interface TaskState {
     minutes: number,
     source: LogSource,
     date?: string,
-    metadata?: {
+    countOrMetadata?: number | {
       outcome_count?: number;
       quality_rating?: 1 | 2 | 3 | 4 | 5;
       energy_level?: 1 | 2 | 3 | 4 | 5;
       context_tags?: string[];
       notes?: string;
-    }
+    },
+    note?: string
   ) => string;
   undoLastLog: (taskId: string, date: string) => boolean;
 
@@ -120,6 +144,11 @@ interface TaskState {
   getAllTaskProgress: (date?: string) => TaskProgress[];
   getLogsForTask: (taskId: string, startDate: string, endDate: string) => IncrementLog[];
   getLogsForDate: (date: string) => IncrementLog[];
+
+  // Priority ranking
+  rankTask: (taskId: string, newRank: number) => void;
+  getTasksForComparison: (priority: Priority) => Task[];
+  rebalanceTaskRanks: (priority: Priority) => void;
 
   // Export/Import
   exportData: () => ExportData;
@@ -182,15 +211,33 @@ export const useTaskStore = create<TaskState>()(
         get().updateTask(id, { is_archived: false });
       },
 
-      addLog: (taskId, minutes, source, date, metadata) => {
+      addLog: (taskId, minutes, source, date, countOrMetadata, note) => {
         const id = generateUUID();
         const task = get().tasks.find((t) => t.id === taskId);
+        const isHabit = task?.task_type === 'HABIT';
+
+        // Handle backward compatibility: countOrMetadata can be either a number or an object
+        let count: number | undefined;
+        let metadata: {
+          outcome_count?: number;
+          quality_rating?: 1 | 2 | 3 | 4 | 5;
+          energy_level?: 1 | 2 | 3 | 4 | 5;
+          context_tags?: string[];
+          notes?: string;
+        } | undefined;
+
+        if (typeof countOrMetadata === 'number') {
+          count = countOrMetadata;
+        } else if (typeof countOrMetadata === 'object') {
+          metadata = countOrMetadata;
+        }
 
         const log: IncrementLog = {
           id,
           task_id: taskId,
           date: date || get().selectedDate,
-          minutes: Math.round(Math.max(0, minutes)), // Ensure positive integer
+          minutes: isHabit ? 0 : Math.round(Math.max(0, minutes)), // 0 for habits
+          count: isHabit ? (count || 1) : undefined, // count for habits
           source,
           created_at: Date.now(),
           // Hormozi enhancements
@@ -200,6 +247,8 @@ export const useTaskStore = create<TaskState>()(
           energy_level: metadata?.energy_level,
           context_tags: metadata?.context_tags,
           notes: metadata?.notes,
+          // Simple note field (for backward compatibility)
+          note: note || undefined,
         };
         set((state) => ({ logs: [...state.logs, log] }));
         return id;
@@ -246,10 +295,18 @@ export const useTaskStore = create<TaskState>()(
 
         if (!task) return null;
 
+        const isHabit = task.task_type === 'HABIT';
+
         if (task.quota_type === 'DAILY') {
-          return computeDailyProgress(task, logs, targetDate);
+          return isHabit
+            ? computeDailyHabitProgress(task, logs, targetDate)
+            : computeDailyProgress(task, logs, targetDate);
+        } else if (task.quota_type === 'DAYS_PER_WEEK') {
+          return computeDaysPerWeekProgress(task, logs, targetDate);
         } else {
-          return computeWeeklyProgress(task, logs, targetDate);
+          return isHabit
+            ? computeWeeklyHabitProgress(task, logs, targetDate)
+            : computeWeeklyProgress(task, logs, targetDate);
         }
       },
 
@@ -266,7 +323,13 @@ export const useTaskStore = create<TaskState>()(
             const priorityDiff =
               PRIORITY_ORDER[a.task.priority] - PRIORITY_ORDER[b.task.priority];
             if (priorityDiff !== 0) return priorityDiff;
-            // Then by name
+
+            // Then by priority rank (lower rank = higher priority)
+            const aRank = a.task.priorityRank ?? Infinity;
+            const bRank = b.task.priorityRank ?? Infinity;
+            if (aRank !== bRank) return aRank - bRank;
+
+            // Finally by name for unranked tasks
             return a.task.name.localeCompare(b.task.name);
           });
       },
@@ -284,10 +347,82 @@ export const useTaskStore = create<TaskState>()(
         return logs.filter((l) => l.date === date);
       },
 
+      rankTask: (taskId, newRank) => {
+        set((state) => {
+          const task = state.tasks.find((t) => t.id === taskId);
+          if (!task) return state;
+
+          // Update tasks with new rank, shifting others as needed
+          const updatedTasks = state.tasks.map((t) => {
+            if (t.id === taskId) {
+              return { ...t, priorityRank: newRank };
+            }
+
+            // Shift tasks in the same priority level with rank >= newRank
+            if (
+              t.priority === task.priority &&
+              t.priorityRank !== undefined &&
+              t.priorityRank >= newRank
+            ) {
+              return { ...t, priorityRank: t.priorityRank + 1 };
+            }
+
+            return t;
+          });
+
+          return { tasks: updatedTasks };
+        });
+      },
+
+      getTasksForComparison: (priority) => {
+        const { tasks } = get();
+        return tasks
+          .filter((t) => t.priority === priority && !t.is_archived)
+          .sort((a, b) => {
+            const aRank = a.priorityRank ?? Infinity;
+            const bRank = b.priorityRank ?? Infinity;
+            if (aRank !== bRank) return aRank - bRank;
+            return a.name.localeCompare(b.name);
+          });
+      },
+
+      rebalanceTaskRanks: (priority) => {
+        set((state) => {
+          // Get tasks for this priority level, sorted by current rank
+          const tasksInPriority = state.tasks
+            .filter((t) => t.priority === priority && !t.is_archived)
+            .sort((a, b) => {
+              const aRank = a.priorityRank ?? Infinity;
+              const bRank = b.priorityRank ?? Infinity;
+              if (aRank !== bRank) return aRank - bRank;
+              return a.name.localeCompare(b.name);
+            });
+
+          // Reassign ranks with spacing of 100
+          const taskIdToNewRank = new Map<string, number>();
+          tasksInPriority.forEach((task, index) => {
+            if (task.priorityRank !== undefined) {
+              taskIdToNewRank.set(task.id, (index + 1) * 100);
+            }
+          });
+
+          // Update tasks
+          const updatedTasks = state.tasks.map((t) => {
+            const newRank = taskIdToNewRank.get(t.id);
+            if (newRank !== undefined) {
+              return { ...t, priorityRank: newRank };
+            }
+            return t;
+          });
+
+          return { tasks: updatedTasks };
+        });
+      },
+
       exportData: () => {
         const { tasks, logs, settings } = get();
         return {
-          version: '1.1.0', // Bumped for Hormozi enhancements
+          version: '1.1.0', // Bumped for Hormozi enhancements and habit support
           exportedAt: Date.now(),
           tasks,
           logs,
@@ -302,10 +437,14 @@ export const useTaskStore = create<TaskState>()(
           console.warn('Unknown export version:', data.version);
         }
 
-        // No migration needed - new fields are optional
-        // Old data will work fine with undefined values
+        // Normalize imported tasks - ensure task_type exists and handle migrations
+        const normalizedTasks = data.tasks.map((task: Task) => ({
+          ...task,
+          task_type: task.task_type || 'TIME',
+        }));
+
         set({
-          tasks: data.tasks,
+          tasks: normalizedTasks,
           logs: data.logs,
           settings: { ...DEFAULT_SETTINGS, ...data.settings },
         });
@@ -325,13 +464,17 @@ export const useTaskStore = create<TaskState>()(
       storage: createJSONStorage(() => zustandStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.setHydrated(true);
-          // Seed demo tasks if no tasks exist
-          if (state.tasks.length === 0) {
-            DEMO_TASKS.forEach((taskData) => {
-              state.addTask(taskData);
-            });
+          // Normalize tasks - ensure task_type exists for backward compatibility
+          const normalizedTasks = state.tasks.map((task) => ({
+            ...task,
+            task_type: task.task_type || 'TIME',
+          }));
+          if (normalizedTasks.some((t, i) => t.task_type !== state.tasks[i].task_type)) {
+            // Only update if there were changes
+            state.tasks = normalizedTasks as Task[];
           }
+
+          state.setHydrated(true);
           // Update selected date to today on rehydration
           state.setSelectedDate(getToday());
         }
@@ -340,7 +483,7 @@ export const useTaskStore = create<TaskState>()(
   )
 );
 
-// Helper function to compute daily task progress
+// Helper function to compute daily TIME task progress
 function computeDailyProgress(
   task: Task,
   logs: IncrementLog[],
@@ -379,10 +522,11 @@ function computeDailyProgress(
     remaining,
     isDone,
     carryoverApplied,
+    progressUnit: 'minutes',
   };
 }
 
-// Helper function to compute weekly task progress
+// Helper function to compute weekly TIME task progress
 function computeWeeklyProgress(
   task: Task,
   logs: IncrementLog[],
@@ -408,6 +552,119 @@ function computeWeeklyProgress(
     remaining,
     isDone,
     carryoverApplied: 0, // No carryover for weekly tasks
+    progressUnit: 'minutes',
+  };
+}
+
+// Helper function to compute daily HABIT task progress
+function computeDailyHabitProgress(
+  task: Task,
+  logs: IncrementLog[],
+  date: string
+): TaskProgress {
+  const quota = task.habit_quota_count || 0;
+
+  // Get today's completions
+  const todayLogs = logs.filter(
+    (l) => l.task_id === task.id && l.date === date
+  );
+  const progress = todayLogs.reduce((sum, l) => sum + (l.count || 0), 0);
+
+  const remaining = Math.max(0, quota - progress);
+  const isDone = progress >= quota;
+
+  return {
+    task,
+    progress,
+    effectiveQuota: quota,
+    remaining,
+    isDone,
+    carryoverApplied: 0, // Habits never carry over
+    progressUnit: 'count',
+  };
+}
+
+// Helper function to compute weekly HABIT task progress
+function computeWeeklyHabitProgress(
+  task: Task,
+  logs: IncrementLog[],
+  date: string
+): TaskProgress {
+  const quota = task.habit_quota_count || 0;
+  const { start, end } = getISOWeekRange(date);
+
+  // Get all logs in this week
+  const weekLogs = logs.filter(
+    (l) =>
+      l.task_id === task.id && l.date >= start && l.date <= end
+  );
+  const progress = weekLogs.reduce((sum, l) => sum + (l.count || 0), 0);
+
+  const remaining = Math.max(0, quota - progress);
+  const isDone = progress >= quota;
+
+  return {
+    task,
+    progress,
+    effectiveQuota: quota,
+    remaining,
+    isDone,
+    carryoverApplied: 0, // Habits never carry over
+    progressUnit: 'count',
+  };
+}
+
+// Helper function to compute DAYS_PER_WEEK task progress
+function computeDaysPerWeekProgress(
+  task: Task,
+  logs: IncrementLog[],
+  date: string
+): TaskProgress {
+  const targetDays = task.weekly_days_target || 3;
+  const dailyMinutes = task.daily_quota_minutes || 0;
+  const { start, end } = getISOWeekRange(date);
+
+  // Get all logs in this week
+  const weekLogs = logs.filter(
+    (l) =>
+      l.task_id === task.id && l.date >= start && l.date <= end
+  );
+
+  // Count unique days with logs that meet the daily quota
+  const daysTotals = new Map<string, number>();
+  for (const log of weekLogs) {
+    const current = daysTotals.get(log.date) || 0;
+    daysTotals.set(log.date, current + log.minutes);
+  }
+
+  // Count days that hit the daily quota
+  let daysCompleted = 0;
+  daysTotals.forEach((totalMinutes) => {
+    if (totalMinutes >= dailyMinutes) {
+      daysCompleted++;
+    }
+  });
+
+  // Calculate days remaining in the week
+  const today = date;
+  const daysInWeek = getDateRange(start, end);
+  const daysRemaining = daysInWeek.filter(d => d >= today).length;
+
+  const remaining = Math.max(0, targetDays - daysCompleted);
+  const isDone = daysCompleted >= targetDays;
+
+  // Progress is number of days completed, quota is target days
+  return {
+    task,
+    progress: daysCompleted,
+    effectiveQuota: targetDays,
+    remaining,
+    isDone,
+    carryoverApplied: 0, // No carryover for days-per-week
+    progressUnit: 'count', // Days are counted, not minutes
+    daysCompletedThisWeek: daysCompleted,
+    daysRemainingInWeek: daysRemaining,
+    weeklyDaysTarget: targetDays,
   };
 }
 

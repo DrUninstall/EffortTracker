@@ -4,6 +4,9 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTaskStore } from '@/stores/taskStore';
 import { Task, IncrementLog, TaskHistoryStats } from '@/types';
+import { CalendarHeatMap } from '@/components/history/CalendarHeatMap';
+import { WeeklySummary } from '@/components/history/WeeklySummary';
+import { EffortChart } from '@/components/history/EffortChart';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -57,12 +60,24 @@ export default function HistoryPage() {
           l.date <= dateRange.end
       );
 
-      if (task.quota_type === 'DAILY') {
-        const dailyStats = computeDailyStats(task, taskLogs, dateRange);
-        stats.set(task.id, dailyStats);
+      const isHabit = task.task_type === 'HABIT';
+
+      if (isHabit) {
+        if (task.quota_type === 'DAILY') {
+          const dailyStats = computeDailyHabitStats(task, taskLogs, dateRange);
+          stats.set(task.id, dailyStats);
+        } else {
+          const weeklyStats = computeWeeklyHabitStats(task, taskLogs, dateRange);
+          stats.set(task.id, weeklyStats);
+        }
       } else {
-        const weeklyStats = computeWeeklyStats(task, taskLogs, dateRange);
-        stats.set(task.id, weeklyStats);
+        if (task.quota_type === 'DAILY') {
+          const dailyStats = computeDailyStats(task, taskLogs, dateRange);
+          stats.set(task.id, dailyStats);
+        } else {
+          const weeklyStats = computeWeeklyStats(task, taskLogs, dateRange);
+          stats.set(task.id, weeklyStats);
+        }
       }
     });
 
@@ -80,8 +95,22 @@ export default function HistoryPage() {
 
   // Calculate totals
   const totals = useMemo(() => {
-    const totalMinutes = filteredStats.reduce(
+    // Separate time-based and habit stats
+    const timeStats = filteredStats.filter((s) => {
+      const task = activeTasks.find((t) => t.id === s.taskId);
+      return task?.task_type === 'TIME';
+    });
+    const habitStats = filteredStats.filter((s) => {
+      const task = activeTasks.find((t) => t.id === s.taskId);
+      return task?.task_type === 'HABIT';
+    });
+
+    const totalMinutes = timeStats.reduce(
       (sum, s) => sum + s.totalMinutes,
+      0
+    );
+    const totalCompletions = habitStats.reduce(
+      (sum, s) => sum + (s.totalCount || 0),
       0
     );
     const avgHitRate =
@@ -89,8 +118,8 @@ export default function HistoryPage() {
         ? filteredStats.reduce((sum, s) => sum + s.quotaHitRate, 0) /
           filteredStats.length
         : 0;
-    return { totalMinutes, avgHitRate };
-  }, [filteredStats]);
+    return { totalMinutes, totalCompletions, avgHitRate, hasTimeStats: timeStats.length > 0, hasHabitStats: habitStats.length > 0 };
+  }, [filteredStats, activeTasks]);
 
   if (!isHydrated) {
     return (
@@ -141,12 +170,22 @@ export default function HistoryPage() {
 
       {/* Summary */}
       <div className={styles.summary}>
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>Total Effort</span>
-          <span className={styles.summaryValue}>
-            {formatMinutes(totals.totalMinutes)}
-          </span>
-        </div>
+        {totals.hasTimeStats && (
+          <div className={styles.summaryCard}>
+            <span className={styles.summaryLabel}>Total Effort</span>
+            <span className={styles.summaryValue}>
+              {formatMinutes(totals.totalMinutes)}
+            </span>
+          </div>
+        )}
+        {totals.hasHabitStats && (
+          <div className={styles.summaryCard}>
+            <span className={styles.summaryLabel}>Completions</span>
+            <span className={styles.summaryValue}>
+              {totals.totalCompletions}
+            </span>
+          </div>
+        )}
         <div className={styles.summaryCard}>
           <span className={styles.summaryLabel}>Avg Hit Rate</span>
           <span className={styles.summaryValue}>
@@ -154,6 +193,15 @@ export default function HistoryPage() {
           </span>
         </div>
       </div>
+
+      {/* Weekly Summary */}
+      <WeeklySummary />
+
+      {/* Calendar Heat Map */}
+      <CalendarHeatMap />
+
+      {/* Effort Chart */}
+      <EffortChart />
 
       {/* Task Stats */}
       <div className={styles.statsGrid}>
@@ -165,6 +213,8 @@ export default function HistoryPage() {
           filteredStats.map((stat) => {
             const task = activeTasks.find((t) => t.id === stat.taskId);
             if (!task) return null;
+
+            const isHabit = task.task_type === 'HABIT';
 
             return (
               <motion.div
@@ -179,13 +229,17 @@ export default function HistoryPage() {
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Total</span>
                     <span className={styles.statValue}>
-                      {formatMinutes(stat.totalMinutes)}
+                      {isHabit
+                        ? `${stat.totalCount || 0} ${task.habit_unit || 'times'}`
+                        : formatMinutes(stat.totalMinutes)}
                     </span>
                   </div>
                   <div className={styles.statItem}>
                     <span className={styles.statLabel}>Avg/day</span>
                     <span className={styles.statValue}>
-                      {formatMinutes(Math.round(stat.avgMinutesPerDay))}
+                      {isHabit
+                        ? (stat.avgCountPerDay || 0).toFixed(1)
+                        : formatMinutes(Math.round(stat.avgMinutesPerDay))}
                     </span>
                   </div>
                   <div className={styles.statItem}>
@@ -210,7 +264,7 @@ export default function HistoryPage() {
                       {task.quota_type === 'DAILY' ? 'days' : 'weeks'}
                     </span>
                   </div>
-                  {task.quota_type === 'DAILY' && stat.avgOverflow > 0 && (
+                  {!isHabit && task.quota_type === 'DAILY' && stat.avgOverflow > 0 && (
                     <div className={styles.statItem}>
                       <span className={styles.statLabel}>Avg Overflow</span>
                       <span className={styles.statValue}>
@@ -349,13 +403,128 @@ function computeWeeklyStats(
   };
 }
 
+// Helper function to compute daily HABIT task stats
+function computeDailyHabitStats(
+  task: Task,
+  logs: IncrementLog[],
+  dateRange: { start: string; end: string }
+): TaskHistoryStats {
+  const habitQuota = task.habit_quota_count || 0;
+  const dates = getDateRange(dateRange.start, dateRange.end);
+
+  // Group logs by date
+  const logsByDate = new Map<string, number>();
+  logs.forEach((log) => {
+    const current = logsByDate.get(log.date) || 0;
+    logsByDate.set(log.date, current + (log.count || 0));
+  });
+
+  let totalCount = 0;
+  let daysHit = 0;
+  let daysWithLogs = 0;
+  let currentStreak = 0;
+  let longestStreak = 0;
+
+  dates.forEach((date) => {
+    const dayCount = logsByDate.get(date) || 0;
+    totalCount += dayCount;
+
+    if (dayCount > 0) {
+      daysWithLogs++;
+    }
+
+    if (dayCount >= habitQuota) {
+      daysHit++;
+      currentStreak++;
+      longestStreak = Math.max(longestStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  });
+
+  const daysInRange = dates.length;
+  const quotaHitRate = daysInRange > 0 ? (daysHit / daysInRange) * 100 : 0;
+  const avgCountPerDay = daysInRange > 0 ? totalCount / daysInRange : 0;
+
+  return {
+    taskId: task.id,
+    totalMinutes: 0,
+    totalCount,
+    avgMinutesPerDay: 0,
+    avgCountPerDay,
+    quotaHitRate,
+    avgOverflow: 0,
+    longestStreak,
+    daysInRange,
+    daysWithLogs,
+  };
+}
+
+// Helper function to compute weekly HABIT task stats
+function computeWeeklyHabitStats(
+  task: Task,
+  logs: IncrementLog[],
+  dateRange: { start: string; end: string }
+): TaskHistoryStats {
+  const habitQuota = task.habit_quota_count || 0;
+  const weeks = getISOWeeksInRange(dateRange.start, dateRange.end);
+  const dates = getDateRange(dateRange.start, dateRange.end);
+
+  // Group logs by week
+  const logsByWeek = new Map<string, number>();
+  logs.forEach((log) => {
+    const week = getISOWeekRange(log.date);
+    const current = logsByWeek.get(week.start) || 0;
+    logsByWeek.set(week.start, current + (log.count || 0));
+  });
+
+  let totalCount = 0;
+  let weeksHit = 0;
+  let currentStreak = 0;
+  let longestStreak = 0;
+
+  weeks.forEach((week) => {
+    const weekCount = logsByWeek.get(week.start) || 0;
+    totalCount += weekCount;
+
+    if (weekCount >= habitQuota) {
+      weeksHit++;
+      currentStreak++;
+      longestStreak = Math.max(longestStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  });
+
+  const weeksInRange = weeks.length;
+  const daysInRange = dates.length;
+  const daysWithLogs = new Set(logs.map((l) => l.date)).size;
+  const quotaHitRate = weeksInRange > 0 ? (weeksHit / weeksInRange) * 100 : 0;
+  const avgCountPerDay = daysInRange > 0 ? totalCount / daysInRange : 0;
+
+  return {
+    taskId: task.id,
+    totalMinutes: 0,
+    totalCount,
+    avgMinutesPerDay: 0,
+    avgCountPerDay,
+    quotaHitRate,
+    avgOverflow: 0,
+    longestStreak,
+    daysInRange,
+    daysWithLogs,
+  };
+}
+
 // Render calibration hint based on stats
 function renderCalibrationHint(task: Task, stat: TaskHistoryStats) {
   // Only show hints for 14+ days of data
   if (stat.daysInRange < 14) return null;
 
-  // High hit rate with overflow - suggest increasing quota
-  if (stat.quotaHitRate >= 90 && stat.avgOverflow >= 15) {
+  const isHabit = task.task_type === 'HABIT';
+
+  // High hit rate with overflow - suggest increasing quota (only for time tasks)
+  if (!isHabit && stat.quotaHitRate >= 90 && stat.avgOverflow >= 15) {
     return (
       <div className={styles.calibrationHint} data-type="increase">
         <p>

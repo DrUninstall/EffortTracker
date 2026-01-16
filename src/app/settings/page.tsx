@@ -12,9 +12,18 @@ import {
   Download,
   Upload,
   ChevronRight,
+  Sun,
+  Moon,
+  Monitor,
+  Bell,
+  Volume2,
+  Vibrate,
+  ArrowUpDown,
+  AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { useTaskStore, selectActiveTasks, selectArchivedTasks } from '@/stores/taskStore';
-import { Task, Priority, QuotaType, PomodoroDefaults } from '@/types';
+import { Task, Priority, QuotaType, TaskType, PomodoroDefaults } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +43,14 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { toast } from '@/components/ui/Toast';
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  REMINDER_PRESETS,
+} from '@/lib/notifications';
+import { BulkRankingDialog } from '@/components/ranking/BulkRankingDialog';
 import styles from './page.module.css';
 
 const DEFAULT_POMODORO: PomodoroDefaults = {
@@ -50,7 +67,7 @@ const PRIORITY_LABELS: Record<Priority, string> = {
 };
 
 const TASK_COLORS = [
-  { value: '', label: 'Default' },
+  { value: 'default', label: 'Default' },
   { value: '#ef4444', label: 'Red' },
   { value: '#f97316', label: 'Orange' },
   { value: '#eab308', label: 'Yellow' },
@@ -79,11 +96,13 @@ export default function SettingsPage() {
   const router = useRouter();
   const {
     tasks,
+    settings,
     addTask,
     updateTask,
     deleteTask,
     archiveTask,
     unarchiveTask,
+    updateSettings,
     exportData,
     importData,
     isHydrated,
@@ -97,27 +116,35 @@ export default function SettingsPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [showBulkRankingDialog, setShowBulkRankingDialog] = useState(false);
+  const [bulkRankingPriority, setBulkRankingPriority] = useState<Priority>('CORE');
 
   // Task form state
   const [formName, setFormName] = useState('');
   const [formPriority, setFormPriority] = useState<Priority>('IMPORTANT');
+  const [formTaskType, setFormTaskType] = useState<TaskType>('TIME');
   const [formQuotaType, setFormQuotaType] = useState<QuotaType>('DAILY');
   const [formDailyQuota, setFormDailyQuota] = useState(30);
   const [formWeeklyQuota, setFormWeeklyQuota] = useState(120);
+  const [formHabitQuota, setFormHabitQuota] = useState(1);
+  const [formHabitUnit, setFormHabitUnit] = useState('');
   const [formWeeklyDaysTarget, setFormWeeklyDaysTarget] = useState<number | undefined>();
   const [formAllowCarryover, setFormAllowCarryover] = useState(false);
-  const [formColor, setFormColor] = useState('');
+  const [formColor, setFormColor] = useState('default');
   const [formPomodoro, setFormPomodoro] = useState<PomodoroDefaults>(DEFAULT_POMODORO);
 
   const resetForm = () => {
     setFormName('');
     setFormPriority('IMPORTANT');
+    setFormTaskType('TIME');
     setFormQuotaType('DAILY');
     setFormDailyQuota(30);
     setFormWeeklyQuota(120);
+    setFormHabitQuota(1);
+    setFormHabitUnit('');
     setFormWeeklyDaysTarget(undefined);
     setFormAllowCarryover(false);
-    setFormColor('');
+    setFormColor('default');
     setFormPomodoro(DEFAULT_POMODORO);
     setEditingTask(null);
   };
@@ -131,12 +158,15 @@ export default function SettingsPage() {
     setEditingTask(task);
     setFormName(task.name);
     setFormPriority(task.priority);
+    setFormTaskType(task.task_type || 'TIME');
     setFormQuotaType(task.quota_type);
     setFormDailyQuota(task.daily_quota_minutes || 30);
     setFormWeeklyQuota(task.weekly_quota_minutes || 120);
+    setFormHabitQuota(task.habit_quota_count || 1);
+    setFormHabitUnit(task.habit_unit || '');
     setFormWeeklyDaysTarget(task.weekly_days_target);
     setFormAllowCarryover(task.allow_carryover);
-    setFormColor(task.color || '');
+    setFormColor(task.color || 'default');
     setFormPomodoro(task.pomodoro_defaults || DEFAULT_POMODORO);
     setShowTaskDialog(true);
   };
@@ -144,15 +174,23 @@ export default function SettingsPage() {
   const handleSaveTask = () => {
     if (!formName.trim()) return;
 
+    const isHabit = formTaskType === 'HABIT';
+
     const taskData = {
       name: formName.trim(),
       priority: formPriority,
+      task_type: formTaskType,
       quota_type: formQuotaType,
-      daily_quota_minutes: formQuotaType === 'DAILY' ? formDailyQuota : undefined,
-      weekly_quota_minutes: formQuotaType === 'WEEKLY' ? formWeeklyQuota : undefined,
-      weekly_days_target: formQuotaType === 'WEEKLY' ? formWeeklyDaysTarget : undefined,
-      allow_carryover: formQuotaType === 'DAILY' ? formAllowCarryover : false,
-      color: formColor || undefined,
+      // Time-based fields
+      daily_quota_minutes: !isHabit && (formQuotaType === 'DAILY' || formQuotaType === 'DAYS_PER_WEEK') ? formDailyQuota : undefined,
+      weekly_quota_minutes: !isHabit && formQuotaType === 'WEEKLY' ? formWeeklyQuota : undefined,
+      weekly_days_target: !isHabit && (formQuotaType === 'WEEKLY' || formQuotaType === 'DAYS_PER_WEEK') ? formWeeklyDaysTarget : undefined,
+      // Habit-based fields
+      habit_quota_count: isHabit ? formHabitQuota : undefined,
+      habit_unit: isHabit && formHabitUnit.trim() ? formHabitUnit.trim() : undefined,
+      // Common fields
+      allow_carryover: !isHabit && formQuotaType === 'DAILY' ? formAllowCarryover : false,
+      color: formColor === 'default' ? undefined : formColor,
       pomodoro_defaults: formPomodoro,
       is_archived: editingTask?.is_archived || false,
     };
@@ -210,12 +248,12 @@ export default function SettingsPage() {
         const data = JSON.parse(text);
         if (data.version && data.tasks && data.logs) {
           importData(data);
-          alert('Data imported successfully!');
+          toast.success('Data imported successfully!');
         } else {
-          alert('Invalid backup file format');
+          toast.info('Invalid backup file format');
         }
       } catch {
-        alert('Failed to import data. Please check the file format.');
+        toast.info('Failed to import data. Please check the file format.');
       }
     };
     input.click();
@@ -283,10 +321,12 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <div className={styles.taskMeta}>
-                    {task.quota_type === 'DAILY'
-                      ? `${task.daily_quota_minutes}m/day`
-                      : `${task.weekly_quota_minutes}m/week`}
-                    {task.allow_carryover && ' • Carryover'}
+                    {task.task_type === 'HABIT'
+                      ? `${task.habit_quota_count} ${task.habit_unit || 'times'}/${task.quota_type === 'DAILY' ? 'day' : 'week'}`
+                      : task.quota_type === 'DAILY'
+                        ? `${task.daily_quota_minutes}m/day`
+                        : `${task.weekly_quota_minutes}m/week`}
+                    {task.allow_carryover && task.task_type === 'TIME' && ' • Carryover'}
                   </div>
                 </div>
                 <div className={styles.taskActions}>
@@ -369,6 +409,259 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* Appearance Section */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Appearance</h2>
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              {settings.theme === 'light' ? (
+                <Sun size={16} />
+              ) : settings.theme === 'dark' ? (
+                <Moon size={16} />
+              ) : (
+                <Monitor size={16} />
+              )}
+              <span className={styles.taskName}>Theme</span>
+            </div>
+            <div className={styles.taskMeta}>
+              {settings.theme === 'system'
+                ? 'Follows your device settings'
+                : settings.theme === 'light'
+                ? 'Always use light mode'
+                : 'Always use dark mode'}
+            </div>
+          </div>
+          <Select
+            value={settings.theme}
+            onValueChange={(value) =>
+              updateSettings({ theme: value as 'light' | 'dark' | 'system' })
+            }
+          >
+            <SelectTrigger style={{ width: '8rem' }}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">System</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </section>
+
+      {/* Notifications Section */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Notifications</h2>
+
+        {/* Sound Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <Volume2 size={16} />
+              <span className={styles.taskName}>Sound Effects</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Play sounds on quota completion and logging
+            </div>
+          </div>
+          <Switch
+            checked={settings.soundEnabled}
+            onCheckedChange={(checked) =>
+              updateSettings({ soundEnabled: checked })
+            }
+          />
+        </div>
+
+        {/* Vibration Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <Vibrate size={16} />
+              <span className={styles.taskName}>Haptic Feedback</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Vibration feedback on mobile devices
+            </div>
+          </div>
+          <Switch
+            checked={settings.vibrationEnabled}
+            onCheckedChange={(checked) =>
+              updateSettings({ vibrationEnabled: checked })
+            }
+          />
+        </div>
+
+        {/* Priority Ranking Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <ArrowUpDown size={16} />
+              <span className={styles.taskName}>Priority Ranking</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Compare tasks to set priorities when creating them
+            </div>
+          </div>
+          <Switch
+            checked={settings.enablePriorityRanking}
+            onCheckedChange={(checked) =>
+              updateSettings({ enablePriorityRanking: checked })
+            }
+          />
+        </div>
+
+        {/* Bulk Re-ranking Buttons */}
+        {settings.enablePriorityRanking && (
+          <div className={styles.taskItem}>
+            <div className={styles.taskInfo}>
+              <div className={styles.taskHeader}>
+                <span className={styles.taskName}>Re-rank All Tasks</span>
+              </div>
+              <div className={styles.taskMeta}>
+                Rank all unranked tasks in a priority level
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkRankingPriority('CORE');
+                  setShowBulkRankingDialog(true);
+                }}
+              >
+                Rank CORE
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkRankingPriority('IMPORTANT');
+                  setShowBulkRankingDialog(true);
+                }}
+              >
+                Rank IMPORTANT
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setBulkRankingPriority('OPTIONAL');
+                  setShowBulkRankingDialog(true);
+                }}
+              >
+                Rank OPTIONAL
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Pace Warnings Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <AlertTriangle size={16} />
+              <span className={styles.taskName}>Pace Warnings</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Warn when behind on weekly quota targets
+            </div>
+          </div>
+          <Switch
+            checked={settings.showPaceWarnings}
+            onCheckedChange={(checked) =>
+              updateSettings({ showPaceWarnings: checked })
+            }
+          />
+        </div>
+
+        {/* Task Guidance Toggle */}
+        <div className={styles.taskItem}>
+          <div className={styles.taskInfo}>
+            <div className={styles.taskHeader}>
+              <Sparkles size={16} />
+              <span className={styles.taskName}>Task Guidance</span>
+            </div>
+            <div className={styles.taskMeta}>
+              Suggest which task to work on next
+            </div>
+          </div>
+          <Switch
+            checked={settings.showTaskGuidance}
+            onCheckedChange={(checked) =>
+              updateSettings({ showTaskGuidance: checked })
+            }
+          />
+        </div>
+
+        {/* Push Notifications Toggle */}
+        {isNotificationSupported() && (
+          <div className={styles.taskItem}>
+            <div className={styles.taskInfo}>
+              <div className={styles.taskHeader}>
+                <Bell size={16} />
+                <span className={styles.taskName}>Reminder Notifications</span>
+              </div>
+              <div className={styles.taskMeta}>
+                {getNotificationPermission() === 'denied'
+                  ? 'Notifications blocked by browser'
+                  : 'Periodic reminders to work on tasks'}
+              </div>
+            </div>
+            <Switch
+              checked={settings.notificationsEnabled}
+              disabled={getNotificationPermission() === 'denied'}
+              onCheckedChange={async (checked) => {
+                if (checked) {
+                  const permission = await requestNotificationPermission();
+                  if (permission === 'granted') {
+                    updateSettings({ notificationsEnabled: true });
+                    toast.success('Notifications enabled!');
+                  } else {
+                    toast.info('Notification permission denied');
+                  }
+                } else {
+                  updateSettings({ notificationsEnabled: false });
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Reminder Interval */}
+        {settings.notificationsEnabled && (
+          <div className={styles.taskItem}>
+            <div className={styles.taskInfo}>
+              <div className={styles.taskHeader}>
+                <Bell size={16} />
+                <span className={styles.taskName}>Reminder Interval</span>
+              </div>
+              <div className={styles.taskMeta}>
+                How often to send reminders
+              </div>
+            </div>
+            <Select
+              value={String(settings.reminderIntervalMinutes)}
+              onValueChange={(value) =>
+                updateSettings({ reminderIntervalMinutes: Number(value) })
+              }
+            >
+              <SelectTrigger style={{ width: '10rem' }}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REMINDER_PRESETS.map((preset) => (
+                  <SelectItem key={preset.value} value={String(preset.value)}>
+                    {preset.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </section>
+
       {/* Data Section */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Data</h2>
@@ -434,7 +727,7 @@ export default function SettingsPage() {
                     {TASK_COLORS.map((color) => (
                       <SelectItem key={color.value} value={color.value}>
                         <span className={styles.colorOption}>
-                          {color.value && (
+                          {color.value !== 'default' && (
                             <span
                               className={styles.colorDot}
                               style={{ backgroundColor: color.value }}
@@ -450,7 +743,20 @@ export default function SettingsPage() {
             </div>
 
             <div className={styles.formField}>
-              <Label htmlFor="quotaType">Quota Type</Label>
+              <Label htmlFor="taskType">Task Type</Label>
+              <Select value={formTaskType} onValueChange={(v) => setFormTaskType(v as TaskType)}>
+                <SelectTrigger id="taskType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TIME">Time-based</SelectItem>
+                  <SelectItem value="HABIT">Habit / Counter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className={styles.formField}>
+              <Label htmlFor="quotaType">Quota Period</Label>
               <Select value={formQuotaType} onValueChange={(v) => setFormQuotaType(v as QuotaType)}>
                 <SelectTrigger id="quotaType">
                   <SelectValue />
@@ -458,11 +764,40 @@ export default function SettingsPage() {
                 <SelectContent>
                   <SelectItem value="DAILY">Daily</SelectItem>
                   <SelectItem value="WEEKLY">Weekly</SelectItem>
+                  <SelectItem value="DAYS_PER_WEEK">Days Per Week</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {formQuotaType === 'DAILY' ? (
+            {formTaskType === 'HABIT' ? (
+              /* Habit fields */
+              <>
+                <div className={styles.formRow}>
+                  <div className={styles.formField}>
+                    <Label htmlFor="habitQuota">Target Count</Label>
+                    <Input
+                      id="habitQuota"
+                      type="number"
+                      min={1}
+                      value={formHabitQuota}
+                      onChange={(e) => setFormHabitQuota(parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+
+                  <div className={styles.formField}>
+                    <Label htmlFor="habitUnit">Unit (optional)</Label>
+                    <Input
+                      id="habitUnit"
+                      type="text"
+                      value={formHabitUnit}
+                      onChange={(e) => setFormHabitUnit(e.target.value)}
+                      placeholder="e.g., glasses, reps"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : formQuotaType === 'DAILY' ? (
+              /* Daily time fields */
               <>
                 <div className={styles.formField}>
                   <Label htmlFor="dailyQuota">Daily Quota (minutes)</Label>
@@ -484,7 +819,39 @@ export default function SettingsPage() {
                   />
                 </div>
               </>
+            ) : formQuotaType === 'DAYS_PER_WEEK' ? (
+              /* Days per week fields */
+              <>
+                <div className={styles.formField}>
+                  <Label htmlFor="weeklyDays">Target Days Per Week</Label>
+                  <Input
+                    id="weeklyDays"
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={formWeeklyDaysTarget || 3}
+                    onChange={(e) =>
+                      setFormWeeklyDaysTarget(
+                        Math.min(7, Math.max(1, parseInt(e.target.value) || 1))
+                      )
+                    }
+                    placeholder="e.g., 3"
+                  />
+                </div>
+
+                <div className={styles.formField}>
+                  <Label htmlFor="dailyQuota">Minutes Per Session</Label>
+                  <Input
+                    id="dailyQuota"
+                    type="number"
+                    min={1}
+                    value={formDailyQuota}
+                    onChange={(e) => setFormDailyQuota(parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </>
             ) : (
+              /* Weekly time fields */
               <>
                 <div className={styles.formField}>
                   <Label htmlFor="weeklyQuota">Weekly Quota (minutes)</Label>
@@ -516,7 +883,8 @@ export default function SettingsPage() {
               </>
             )}
 
-            {/* Pomodoro Settings */}
+            {/* Pomodoro Settings - only for time tasks */}
+            {formTaskType === 'TIME' && (
             <details className={styles.pomodoroSection}>
               <summary className={styles.pomodoroToggle}>
                 Pomodoro Settings
@@ -584,6 +952,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </details>
+            )}
           </div>
 
           <DialogFooter>
@@ -617,6 +986,17 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Ranking Dialog */}
+      <BulkRankingDialog
+        isOpen={showBulkRankingDialog}
+        priority={bulkRankingPriority}
+        onComplete={() => {
+          setShowBulkRankingDialog(false);
+          toast.success('Tasks ranked successfully!');
+        }}
+        onClose={() => setShowBulkRankingDialog(false)}
+      />
     </div>
   );
 }

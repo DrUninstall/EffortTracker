@@ -1,29 +1,43 @@
 .card {
   background-color: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 1rem;
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  transition: box-shadow 0.15s ease;
+  gap: var(--space-3);
+  box-shadow: var(--stroke-weak);
+  will-change: transform, box-shadow;
+  transition: transform var(--duration-fast) var(--ease-out-cubic),
+              box-shadow var(--duration-fast) var(--ease-out-cubic);
 }
 
-.card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+/* Only apply hover effects on devices with hover capability */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--stroke-weak), var(--elevation-raised);
+  }
+}
+
+/* Touch device - no hover effect, just subtle press */
+@media (hover: none) {
+  .card:active {
+    transform: scale(0.99);
+  }
 }
 
 /* Header */
 .header {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .titleRow {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .priorityDot {
@@ -41,6 +55,31 @@
   flex: 1;
 }
 
+/* Break Down Button */
+.breakdownBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--duration-fast) var(--ease-out-cubic),
+              color var(--duration-fast) var(--ease-out-cubic),
+              background-color var(--duration-fast) var(--ease-out-cubic);
+  flex-shrink: 0;
+}
+
+.breakdownBtn:hover {
+  opacity: 1;
+  color: var(--primary);
+  background-color: var(--accent);
+}
+
 .doneIndicator {
   display: flex;
   align-items: center;
@@ -52,10 +91,60 @@
   color: white;
 }
 
+/* Streak Badge */
+.streakBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.streakBadge[data-level="warm"] {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.streakBadge[data-level="hot"] {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.streakBadge[data-level="fire"] {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  animation: fireGlow 2s ease-in-out infinite;
+}
+
+@keyframes fireGlow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+}
+
+/* Freeze indicator - shown when streak was saved by a freeze */
+.freezeIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #93c5fd, #3b82f6);
+  color: white;
+  font-size: 0.625rem;
+  flex-shrink: 0;
+}
+
+.freezeIndicator svg {
+  width: 12px;
+  height: 12px;
+}
+
 .quotaInfo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: 0.8125rem;
 }
 
@@ -72,7 +161,7 @@
 .progressSection {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--space-1-5);
 }
 
 .progressBar {
@@ -86,7 +175,7 @@
 .progressStats {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-family: var(--font-mono);
   font-size: 0.875rem;
 }
@@ -105,9 +194,16 @@
 }
 
 .remaining {
-  margin-left: 0.5rem;
+  margin-left: var(--space-2);
   color: var(--primary);
   font-weight: 500;
+}
+
+.habitUnit {
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  margin-left: var(--space-1);
 }
 
 /* Actions */
@@ -115,18 +211,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
 }
 
 .quickAddButtons {
   display: flex;
-  gap: 0.375rem;
+  gap: var(--space-1-5);
 }
 
 .quickAddButton {
   min-width: 2.75rem;
-  padding: 0.25rem 0.5rem;
+  padding: var(--space-1) var(--space-2);
   font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
@@ -134,7 +230,7 @@
 .mainActions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .undoButton {
@@ -148,22 +244,166 @@
 }
 
 .startButton {
-  gap: 0.375rem;
+  gap: var(--space-1-5);
+}
+
+/* Habit Actions */
+.habitActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.habitAddButton {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--elevation-raised);
+  transition: transform var(--duration-fast) var(--ease-out-cubic),
+              box-shadow var(--duration-fast) var(--ease-out-cubic);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.habitAddButton:hover {
+  transform: scale(1.05);
+  box-shadow: var(--elevation-floating);
+}
+
+.habitAddButton:active {
+  transform: scale(0.95);
+}
+
+/* Note Button */
+.noteButton {
+  width: 2rem;
+  height: 2rem;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+.noteButton:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+/* Note Input Overlay */
+.noteInputOverlay {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background-color: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.noteInputHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.noteInputLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.noteInputClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.noteInputClose:hover {
+  background-color: var(--background-base);
+  color: var(--foreground);
+}
+
+.noteInput {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-sm);
+  background-color: var(--background-base);
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.noteInput::placeholder {
+  color: var(--muted-foreground);
+}
+
+.noteInputActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 /* Mobile adjustments */
 @media (max-width: 480px) {
+  .card {
+    padding: var(--space-3);
+  }
+
   .actions {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .quickAddButtons {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-1-5);
+  }
+
+  .quickAddButton {
+    min-width: auto;
+    padding: var(--space-1-5);
+    font-size: 0.75rem;
   }
 
   .mainActions {
     justify-content: flex-end;
+  }
+
+  .habitAddButton {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .noteButton {
+    display: none;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .quickAddButtons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quickAddButton {
+    padding: var(--space-2);
   }
 }

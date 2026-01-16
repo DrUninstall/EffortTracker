@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,12 +12,17 @@ import {
   Zap,
   SkipForward,
   X,
-  Check,
+  Target,
+  Sparkles,
 } from 'lucide-react';
 import { useTimerStore } from '@/stores/timerStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { Button } from '@/components/ui/button';
-import { formatTimer } from '@/utils/date';
+import { toast } from '@/components/ui/Toast';
+import { formatTimer, formatMinutes } from '@/utils/date';
+import { triggerHaptic } from '@/lib/haptics';
+import { playSound } from '@/lib/sounds';
+import { FocusCompanion } from '@/components/FocusCompanion';
 import styles from './page.module.css';
 
 export default function TimerPage() {
@@ -42,12 +47,10 @@ export default function TimerPage() {
     getPhaseMinutes,
   } = useTimerStore();
 
-  const { addLog, tasks, isHydrated } = useTaskStore();
+  const { addLog, undoLastLog, selectedDate, tasks, isHydrated, getTaskProgress } = useTaskStore();
 
   // Local state for display
   const [displayTime, setDisplayTime] = useState(0);
-  const [showLogPrompt, setShowLogPrompt] = useState(false);
-  const [logMinutes, setLogMinutes] = useState(0);
   const rafRef = useRef<number>();
 
   // Hormozi: Post-session reflection state
@@ -55,6 +58,34 @@ export default function TimerPage() {
   const [energyLevel, setEnergyLevel] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [outcomeCount, setOutcomeCount] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Get task progress for quota context
+  const taskProgress = useMemo(() => {
+    if (!taskId || !isHydrated) return null;
+    return getTaskProgress(taskId, selectedDate);
+  }, [taskId, isHydrated, selectedDate, getTaskProgress]);
+
+  // Calculate projected progress (current + timer elapsed)
+  const projectedProgress = useMemo(() => {
+    if (!taskProgress) return null;
+    const elapsedMinutes = Math.round(displayTime / 60000);
+    const projected = taskProgress.progress + elapsedMinutes;
+    const projectedRemaining = Math.max(0, taskProgress.effectiveQuota - projected);
+    const willComplete = projected >= taskProgress.effectiveQuota;
+    return {
+      current: taskProgress.progress,
+      projected,
+      remaining: taskProgress.remaining,
+      projectedRemaining,
+      effectiveQuota: taskProgress.effectiveQuota,
+      willComplete,
+      percentComplete: Math.min(100, (taskProgress.progress / taskProgress.effectiveQuota) * 100),
+      projectedPercentComplete: Math.min(100, (projected / taskProgress.effectiveQuota) * 100),
+      elapsedMinutes,
+      isDone: taskProgress.isDone,
+      quotaType: taskProgress.task.quota_type,
+    };
+  }, [taskProgress, displayTime]);
 
   // Update display time using requestAnimationFrame for smooth updates
   useEffect(() => {
@@ -104,6 +135,83 @@ export default function TimerPage() {
     };
   }, [isRunning, mode, getElapsedMs, getRemainingMs]);
 
+  // Update document title with timer status (for browser tab visibility)
+  useEffect(() => {
+    const originalTitle = 'Effort Ledger';
+
+    if (!taskId) {
+      document.title = originalTitle;
+      return;
+    }
+
+    const updateTitle = () => {
+      const timeDisplay = formatTimer(displayTime);
+      const statusEmoji = isRunning ? '▶️' : '⏸️';
+      const phaseLabel = mode === 'POMODORO'
+        ? pomodoroPhase === 'FOCUS' ? '🎯' : '☕'
+        : '';
+
+      document.title = `${statusEmoji} ${timeDisplay} ${phaseLabel} ${taskName} | Effort Ledger`;
+    };
+
+    updateTitle();
+
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [displayTime, isRunning, taskId, taskName, mode, pomodoroPhase]);
+
+  // Wake Lock API to prevent screen sleep during active timer
+  useEffect(() => {
+    let wakeLock: WakeLockSentinel | null = null;
+
+    const requestWakeLock = async () => {
+      if (!('wakeLock' in navigator)) return;
+
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          // Wake lock was released (e.g., tab became hidden)
+        });
+      } catch {
+        // Wake lock request failed (e.g., low battery, permission denied)
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLock) {
+        try {
+          await wakeLock.release();
+          wakeLock = null;
+        } catch {
+          // Ignore release errors
+        }
+      }
+    };
+
+    // Request wake lock when timer is running
+    if (isRunning && taskId) {
+      requestWakeLock();
+    }
+
+    // Re-acquire wake lock when page becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isRunning && taskId) {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [isRunning, taskId]);
+
+  // Get user settings for haptics/sounds
+  const { settings } = useTaskStore();
+
   // Check for Pomodoro phase completion
   useEffect(() => {
     if (mode === 'POMODORO' && isRunning) {
@@ -130,64 +238,91 @@ export default function TimerPage() {
     getRemainingMs,
   ]);
 
-  // Handle stop timer
+  // Handle stop timer - auto-logs with toast feedback
   const handleStop = useCallback(() => {
-    if (mode === 'STOPWATCH') {
-      const elapsed = getElapsedMs();
-      const minutes = Math.round(elapsed / 60000);
-      if (minutes > 0) {
-        setLogMinutes(minutes);
-        setShowLogPrompt(true);
-      }
-      pauseTimer();
-    } else {
-      stopTimer();
-      resetTimer();
-      router.push('/');
-    }
-  }, [mode, getElapsedMs, pauseTimer, stopTimer, resetTimer, router]);
+    const elapsed = getElapsedMs();
+    const minutes = Math.round(elapsed / 60000);
+    const currentTaskId = taskId;
+    const currentTaskName = taskName;
 
-  // Handle logging after stopwatch
-  const handleLogConfirm = () => {
-    if (taskId && logMinutes > 0) {
-      const task = tasks.find((t) => t.id === taskId);
-      const settings = useTaskStore.getState().settings;
+    // For Pomodoro, only log if in FOCUS phase
+    const shouldLog = mode === 'STOPWATCH' ||
+      (mode === 'POMODORO' && pomodoroPhase === 'FOCUS');
 
-      // Build metadata object
-      const metadata: {
-        quality_rating?: 1 | 2 | 3 | 4 | 5;
-        energy_level?: 1 | 2 | 3 | 4 | 5;
-        outcome_count?: number;
-      } = {};
+    if (minutes > 0 && currentTaskId && shouldLog) {
+      // Auto-log the time
+      addLog(currentTaskId, minutes, 'TIMER');
 
-      // Only include if user provided values or if enabled in settings
-      if (qualityRating) metadata.quality_rating = qualityRating;
-      if (energyLevel) metadata.energy_level = energyLevel;
-      if (outcomeCount && task?.track_outcomes) {
-        const count = parseInt(outcomeCount);
-        if (!isNaN(count) && count > 0) {
-          metadata.outcome_count = count;
+      // Show toast with undo action
+      toast.success(
+        `Logged ${formatMinutes(minutes)} to ${currentTaskName}`,
+        {
+          label: 'Undo',
+          onClick: () => {
+            undoLastLog(currentTaskId, selectedDate);
+          },
         }
-      }
-
-      addLog(taskId, logMinutes, 'TIMER', undefined, metadata);
+      );
     }
 
-    // Reset reflection state
-    setQualityRating(null);
-    setEnergyLevel(null);
-    setOutcomeCount('');
-    setShowAdvanced(false);
-    setShowLogPrompt(false);
     resetTimer();
     router.push('/');
-  };
+  }, [mode, taskId, taskName, selectedDate, getElapsedMs, addLog, undoLastLog, resetTimer, router, pomodoroPhase]);
 
-  const handleLogDiscard = () => {
-    setShowLogPrompt(false);
-    resetTimer();
-    router.push('/');
-  };
+  // Smart checkpoint system - show gentle prompts at focus intervals in stopwatch mode
+  const [showCheckpoint, setShowCheckpoint] = useState(false);
+  const [checkpointCount, setCheckpointCount] = useState(0);
+  const lastCheckpointRef = useRef(0);
+
+  // Get focus interval from task's pomodoro defaults
+  const focusInterval = pomodoroDefaults?.focus_minutes || 25;
+
+  useEffect(() => {
+    if (mode !== 'STOPWATCH' || !isRunning) return;
+
+    const elapsedMinutes = Math.floor(displayTime / 60000);
+    const checkpointsReached = Math.floor(elapsedMinutes / focusInterval);
+
+    // Show checkpoint prompt when we cross a focus interval threshold
+    if (checkpointsReached > lastCheckpointRef.current && checkpointsReached > checkpointCount) {
+      lastCheckpointRef.current = checkpointsReached;
+      setCheckpointCount(checkpointsReached);
+      setShowCheckpoint(true);
+      if (settings.vibrationEnabled) {
+        triggerHaptic('checkpoint');
+      }
+      if (settings.soundEnabled) {
+        playSound('timerEnd');
+      }
+    }
+  }, [displayTime, mode, isRunning, focusInterval, checkpointCount, settings]);
+
+  // Handle checkpoint actions
+  const handleCheckpointContinue = useCallback(() => {
+    setShowCheckpoint(false);
+  }, []);
+
+  const handleCheckpointBreak = useCallback(() => {
+    // Pause current timer, log the time, then start a break
+    const elapsedMinutes = Math.round(displayTime / 60000);
+    if (elapsedMinutes > 0 && taskId) {
+      addLog(taskId, elapsedMinutes, 'TIMER');
+      toast.success(`Logged ${formatMinutes(elapsedMinutes)} - enjoy your break!`);
+    }
+
+    // Start break mode
+    pauseTimer();
+    setShowCheckpoint(false);
+
+    // Reset for next session
+    lastCheckpointRef.current = 0;
+    setCheckpointCount(0);
+  }, [displayTime, taskId, addLog, pauseTimer]);
+
+  const handleCheckpointStop = useCallback(() => {
+    setShowCheckpoint(false);
+    handleStop();
+  }, [handleStop]);
 
   // Handle cancel/back
   const handleCancel = () => {
@@ -307,10 +442,89 @@ export default function TimerPage() {
         </Button>
       </header>
 
+      {/* Quota Progress Context */}
+      {projectedProgress && !projectedProgress.isDone && (
+        <div className={styles.quotaContext}>
+          <div className={styles.quotaProgress}>
+            <div className={styles.quotaBar}>
+              {/* Base progress (already logged) */}
+              <div
+                className={styles.quotaBarFilled}
+                style={{ width: `${projectedProgress.percentComplete}%` }}
+              />
+              {/* Projected progress (from current timer) */}
+              {projectedProgress.elapsedMinutes > 0 && (
+                <div
+                  className={`${styles.quotaBarProjected} ${projectedProgress.willComplete ? styles.quotaBarComplete : ''}`}
+                  style={{
+                    left: `${projectedProgress.percentComplete}%`,
+                    width: `${Math.min(100 - projectedProgress.percentComplete, projectedProgress.projectedPercentComplete - projectedProgress.percentComplete)}%`
+                  }}
+                />
+              )}
+            </div>
+            <div className={styles.quotaLabels}>
+              <span className={styles.quotaLogged}>
+                {formatMinutes(projectedProgress.current)} logged
+              </span>
+              {projectedProgress.elapsedMinutes > 0 && (
+                <span className={styles.quotaProjected}>
+                  +{formatMinutes(projectedProgress.elapsedMinutes)} session
+                </span>
+              )}
+              <span className={styles.quotaTarget}>
+                {formatMinutes(projectedProgress.effectiveQuota)} {projectedProgress.quotaType === 'DAILY' ? 'today' : 'this week'}
+              </span>
+            </div>
+          </div>
+
+          {/* Completion indicator */}
+          <AnimatePresence>
+            {projectedProgress.willComplete && projectedProgress.elapsedMinutes > 0 && (
+              <motion.div
+                className={styles.completionIndicator}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <Sparkles size={16} />
+                <span>Quota complete when you stop!</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Remaining indicator */}
+          {!projectedProgress.willComplete && projectedProgress.projectedRemaining > 0 && (
+            <div className={styles.remainingIndicator}>
+              <Target size={14} />
+              <span>
+                {formatMinutes(projectedProgress.projectedRemaining)} more to hit quota
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Focus Companion - Visual encouragement */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: 'var(--space-4) 0' }}>
+        <FocusCompanion
+          isTimerRunning={isRunning}
+          elapsedMinutes={projectedProgress?.elapsedMinutes || Math.round(displayTime / 60000)}
+        />
+      </div>
+
+      {/* Already done indicator */}
+      {projectedProgress?.isDone && (
+        <div className={styles.quotaDoneContext}>
+          <Sparkles size={18} />
+          <span>Quota already complete! Extra credit time.</span>
+        </div>
+      )}
+
       {/* Timer Display */}
       <div className={styles.timerDisplay}>
         <motion.div
-          className={styles.timerCircle}
+          className={`${styles.timerCircle} ${projectedProgress?.willComplete ? styles.timerCircleComplete : ''}`}
           animate={{
             scale: isRunning ? [1, 1.02, 1] : 1,
           }}
@@ -320,6 +534,47 @@ export default function TimerPage() {
             ease: 'easeInOut',
           }}
         >
+          {/* SVG Progress Ring */}
+          {projectedProgress && (
+            <svg className={styles.progressRing} viewBox="0 0 100 100">
+              {/* Background ring */}
+              <circle
+                className={styles.progressRingBg}
+                cx="50"
+                cy="50"
+                r="46"
+                strokeWidth="4"
+                fill="none"
+              />
+              {/* Current progress */}
+              <circle
+                className={styles.progressRingFilled}
+                cx="50"
+                cy="50"
+                r="46"
+                strokeWidth="4"
+                fill="none"
+                strokeDasharray={`${projectedProgress.percentComplete * 2.89} 289`}
+                strokeLinecap="round"
+                transform="rotate(-90 50 50)"
+              />
+              {/* Projected progress */}
+              {projectedProgress.elapsedMinutes > 0 && (
+                <circle
+                  className={`${styles.progressRingProjected} ${projectedProgress.willComplete ? styles.progressRingComplete : ''}`}
+                  cx="50"
+                  cy="50"
+                  r="46"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeDasharray={`${(projectedProgress.projectedPercentComplete - projectedProgress.percentComplete) * 2.89} 289`}
+                  strokeDashoffset={`${-projectedProgress.percentComplete * 2.89}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 50 50)"
+                />
+              )}
+            </svg>
+          )}
           <span className={styles.timerValue}>{formatTimer(displayTime)}</span>
           {mode === 'POMODORO' && (
             <span className={styles.cycleCount}>
@@ -336,7 +591,10 @@ export default function TimerPage() {
             variant="default"
             size="lg"
             className={styles.primaryButton}
-            onClick={resumeTimer}
+            onClick={() => {
+              if (settings.vibrationEnabled) triggerHaptic('medium');
+              resumeTimer();
+            }}
           >
             <Play size={24} />
             {displayTime > 0 ? 'Resume' : 'Start'}
@@ -346,7 +604,10 @@ export default function TimerPage() {
             variant="secondary"
             size="lg"
             className={styles.primaryButton}
-            onClick={pauseTimer}
+            onClick={() => {
+              if (settings.vibrationEnabled) triggerHaptic('light');
+              pauseTimer();
+            }}
           >
             <Pause size={24} />
             Pause
@@ -354,24 +615,45 @@ export default function TimerPage() {
         )}
 
         <div className={styles.secondaryControls}>
-          <Button variant="outline" size="icon" onClick={handleStop}>
-            <Square size={20} />
+          <Button
+            variant="outline"
+            size="icon"
+            className={styles.controlButton}
+            onClick={() => {
+              if (settings.vibrationEnabled) triggerHaptic('heavy');
+              handleStop();
+            }}
+            aria-label="Stop timer and log time"
+          >
+            <Square size={22} />
           </Button>
           {mode === 'POMODORO' &&
             (pomodoroPhase === 'BREAK' || pomodoroPhase === 'LONG_BREAK') && (
-              <Button variant="outline" size="icon" onClick={skipBreak}>
-                <SkipForward size={20} />
+              <Button
+                variant="outline"
+                size="icon"
+                className={styles.controlButton}
+                onClick={() => {
+                  if (settings.vibrationEnabled) triggerHaptic('light');
+                  skipBreak();
+                }}
+                aria-label="Skip break"
+              >
+                <SkipForward size={22} />
               </Button>
             )}
           <Button
             variant="outline"
             size="icon"
+            className={styles.controlButton}
             onClick={() => {
+              if (settings.vibrationEnabled) triggerHaptic('light');
               resetTimer();
               startTimer(taskId, taskName, mode, pomodoroDefaults || undefined);
             }}
+            aria-label="Reset timer"
           >
-            <RotateCcw size={20} />
+            <RotateCcw size={22} />
           </Button>
         </div>
       </div>
@@ -382,6 +664,7 @@ export default function TimerPage() {
           variant={mode === 'STOPWATCH' ? 'secondary' : 'ghost'}
           size="sm"
           onClick={() => {
+            if (settings.vibrationEnabled) triggerHaptic('light');
             if (mode !== 'STOPWATCH') {
               resetTimer();
               startTimer(taskId, taskName, 'STOPWATCH', pomodoroDefaults || undefined);
@@ -395,6 +678,7 @@ export default function TimerPage() {
           variant={mode === 'POMODORO' ? 'secondary' : 'ghost'}
           size="sm"
           onClick={() => {
+            if (settings.vibrationEnabled) triggerHaptic('light');
             if (mode !== 'POMODORO') {
               resetTimer();
               startTimer(taskId, taskName, 'POMODORO', pomodoroDefaults || undefined);
@@ -406,100 +690,62 @@ export default function TimerPage() {
         </Button>
       </div>
 
-      {/* Log Prompt Modal - Enhanced with Hormozi reflection */}
+      {/* Smart Checkpoint Prompt */}
       <AnimatePresence>
-        {showLogPrompt && (
+        {showCheckpoint && mode === 'STOPWATCH' && (
           <motion.div
-            className={styles.modalOverlay}
+            className={styles.checkpointOverlay}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className={styles.modal}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              className={styles.checkpointPrompt}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
             >
-              <h2 className={styles.modalTitle}>Log Session</h2>
-              <p className={styles.modalText}>
-                You spent <strong>{logMinutes} minutes</strong> on {taskName}.
+              <div className={styles.checkpointHeader}>
+                <Sparkles size={20} />
+                <span>{focusInterval} minutes complete!</span>
+              </div>
+              <p className={styles.checkpointText}>
+                Great focus session. What would you like to do?
               </p>
-
-              {/* Quality Rating (always shown) */}
-              <div className={styles.reflectionSection}>
-                <label className={styles.reflectionLabel}>
-                  How was this session?
-                </label>
-                <div className={styles.starRating}>
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <button
-                      key={rating}
-                      type="button"
-                      className={styles.starButton}
-                      data-active={qualityRating && rating <= qualityRating}
-                      onClick={() => setQualityRating(rating as 1 | 2 | 3 | 4 | 5)}
-                    >
-                      ⭐
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Energy Level (always shown) */}
-              <div className={styles.reflectionSection}>
-                <label className={styles.reflectionLabel}>
-                  Energy after session?
-                </label>
-                <div className={styles.energySlider}>
-                  {[1, 2, 3, 4, 5].map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      className={styles.energyButton}
-                      data-active={energyLevel === level}
-                      onClick={() => setEnergyLevel(level as 1 | 2 | 3 | 4 | 5)}
-                    >
-                      {level === 1 && '😴'}
-                      {level === 2 && '😐'}
-                      {level === 3 && '🙂'}
-                      {level === 4 && '😊'}
-                      {level === 5 && '⚡'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Outcome Count (if task tracks outcomes) */}
-              {tasks.find((t) => t.id === taskId)?.track_outcomes && (
-                <div className={styles.reflectionSection}>
-                  <label className={styles.reflectionLabel}>
-                    {tasks.find((t) => t.id === taskId)?.outcome_label || 'Outcomes'} completed?
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    className={styles.outcomeInput}
-                    value={outcomeCount}
-                    onChange={(e) => setOutcomeCount(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-              )}
-
-              <div className={styles.modalActions}>
-                <Button variant="outline" onClick={handleLogDiscard}>
-                  Discard
+              <div className={styles.checkpointActions}>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className={styles.checkpointButton}
+                  onClick={handleCheckpointContinue}
+                >
+                  <Zap size={16} />
+                  Keep going
                 </Button>
-                <Button variant="default" onClick={handleLogConfirm}>
-                  <Check size={18} />
-                  Log {logMinutes}m
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className={styles.checkpointButton}
+                  onClick={handleCheckpointBreak}
+                >
+                  <Coffee size={16} />
+                  Take a break
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={styles.checkpointButton}
+                  onClick={handleCheckpointStop}
+                >
+                  <Square size={16} />
+                  Stop & log
                 </Button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   );
 }

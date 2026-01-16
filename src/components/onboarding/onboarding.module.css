@@ -1,0 +1,242 @@
+/* Shared overlay styles */
+.splashContainer,
+.screenContainer,
+.successContainer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--background);
+  padding: var(--space-4);
+}
+
+/* Welcome Splash */
+.splashContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.logoIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: var(--primary-foreground);
+}
+
+.splashTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.splashSubtitle {
+  font-size: 1.125rem;
+  color: var(--muted-foreground);
+  margin: 0;
+}
+
+.tapHint {
+  position: absolute;
+  bottom: var(--space-8);
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+/* First Task Screen */
+.screenContent {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.screenTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  text-align: center;
+}
+
+.screenSubtitle {
+  font-size: 0.9375rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  text-align: center;
+  margin-top: calc(var(--space-2) * -1);
+}
+
+.presetsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.presetButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background-color: var(--card);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--stroke-weak);
+  cursor: pointer;
+  transition: box-shadow var(--duration-fast) var(--ease-out-cubic),
+              transform var(--duration-fast) var(--ease-out-cubic);
+  color: var(--foreground);
+}
+
+.presetButton:hover {
+  box-shadow: var(--stroke-weak), var(--elevation-raised);
+}
+
+.presetButton:active {
+  transform: scale(0.97);
+}
+
+.presetName {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.presetQuota {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--border);
+}
+
+.customButton {
+  width: 100%;
+}
+
+.customForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Success Celebration */
+.successContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.successIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background-color: var(--success);
+  color: var(--success-foreground);
+}
+
+.successTitle {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.successSubtitle {
+  font-size: 1rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.confettiContainer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* First Log Prompt */
+.promptOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+.promptBubble {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+  background-color: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--stroke-weak), var(--elevation-overlay);
+  text-align: center;
+  color: var(--foreground);
+}
+
+.promptText {
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.promptText strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (min-width: 640px) {
+  .presetsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .splashTitle {
+    font-size: 2.5rem;
+  }
+}

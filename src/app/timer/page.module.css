@@ -1,7 +1,7 @@
 .container {
   max-width: 32rem;
   margin: 0 auto;
-  padding: 1rem;
+  padding: var(--space-4);
   min-height: calc(100vh - 5rem);
   display: flex;
   flex-direction: column;
@@ -12,7 +12,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
 }
 
 .title {
@@ -25,7 +25,7 @@
 .taskInfo {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .taskName {
@@ -40,15 +40,122 @@
   color: var(--muted-foreground);
 }
 
+/* Quota Progress Context */
+.quotaContext {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.quotaProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.quotaBar {
+  position: relative;
+  height: 0.5rem;
+  background-color: var(--secondary);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.quotaBarFilled {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background-color: var(--primary);
+  border-radius: 9999px;
+  transition: width var(--duration-normal) var(--ease-out-cubic);
+}
+
+.quotaBarProjected {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--primary);
+  opacity: 0.5;
+  border-radius: 9999px;
+  transition: width var(--duration-normal) var(--ease-out-cubic),
+              left var(--duration-normal) var(--ease-out-cubic);
+}
+
+.quotaBarComplete {
+  background-color: var(--success);
+  opacity: 0.7;
+}
+
+.quotaLabels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.quotaLogged {
+  font-family: var(--font-mono);
+}
+
+.quotaProjected {
+  font-family: var(--font-mono);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.quotaTarget {
+  font-family: var(--font-mono);
+}
+
+.completionIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: linear-gradient(135deg, var(--success) 0%, hsl(142, 71%, 35%) 100%);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.remainingIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.quotaDoneContext {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: linear-gradient(135deg, var(--success) 0%, hsl(142, 71%, 35%) 100%);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0 var(--space-2) var(--space-4);
+}
+
 /* Task Selector */
 .taskSelector {
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
 }
 
 .selectorLabel {
   font-size: 0.875rem;
   color: var(--muted-foreground);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 .noTasks {
@@ -59,35 +166,37 @@
 .taskList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .taskOption {
-  padding: 0.875rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
   background-color: var(--card);
   color: var(--foreground);
   font-size: 0.9375rem;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: var(--stroke-weak);
+  transition: background-color var(--duration-fast) var(--ease-out-cubic),
+              box-shadow var(--duration-fast) var(--ease-out-cubic);
 }
 
 .taskOption:hover {
   background-color: var(--accent);
-  border-color: var(--primary);
+  box-shadow: var(--stroke-weak-hover);
 }
 
 /* Mode Selector */
 .modeSelector {
   margin-top: auto;
-  padding-top: 2rem;
+  padding-top: var(--space-8);
 }
 
 .modeButtons {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .modeButtons button {
@@ -100,10 +209,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 0;
+  padding: var(--space-8) 0;
 }
 
 .timerCircle {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -112,8 +222,42 @@
   height: 16rem;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--card) 0%, var(--secondary) 100%);
-  border: 4px solid var(--primary);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--stroke-strong), var(--elevation-raised);
+}
+
+.timerCircleComplete {
+  box-shadow: var(--stroke-strong), var(--elevation-raised), 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+/* Progress Ring */
+.progressRing {
+  position: absolute;
+  inset: -0.5rem;
+  width: calc(100% + 1rem);
+  height: calc(100% + 1rem);
+  pointer-events: none;
+}
+
+.progressRingBg {
+  stroke: var(--secondary);
+  opacity: 0.5;
+}
+
+.progressRingFilled {
+  stroke: var(--primary);
+  transition: stroke-dasharray var(--duration-normal) var(--ease-out-cubic);
+}
+
+.progressRingProjected {
+  stroke: var(--primary);
+  opacity: 0.5;
+  transition: stroke-dasharray var(--duration-normal) var(--ease-out-cubic),
+              stroke-dashoffset var(--duration-normal) var(--ease-out-cubic);
+}
+
+.progressRingComplete {
+  stroke: var(--success);
+  opacity: 0.8;
 }
 
 .timerValue {
@@ -127,7 +271,7 @@
 .cycleCount {
   font-size: 0.875rem;
   color: var(--muted-foreground);
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 /* Controls */
@@ -135,27 +279,39 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
-  padding: 1.5rem 0;
+  gap: var(--space-6);
+  padding: var(--space-6) 0;
 }
 
 .primaryButton {
-  min-width: 10rem;
-  gap: 0.5rem;
+  min-width: 12rem;
+  min-height: 3.5rem;
+  gap: var(--space-2);
+  font-size: 1.125rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .secondaryControls {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-5);
+}
+
+/* Enhanced touch targets for mobile (minimum 44x44px) */
+.controlButton {
+  min-width: 3rem;
+  min-height: 3rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Mode Switch */
 .modeSwitch {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 1rem 0;
-  border-top: 1px solid var(--border);
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  box-shadow: var(--stroke-weak-top);
   margin-top: auto;
 }
 
@@ -168,29 +324,29 @@
   align-items: center;
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.5);
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .modal {
   background-color: var(--background);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
+  border-radius: var(--radius);
+  padding: var(--space-6);
   max-width: 24rem;
   width: 100%;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--stroke-weak), var(--elevation-overlay);
 }
 
 .modalTitle {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--foreground);
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-3);
 }
 
 .modalText {
   font-size: 0.9375rem;
   color: var(--muted-foreground);
-  margin: 0 0 1.5rem;
+  margin: 0 0 var(--space-6);
 }
 
 .modalText strong {
@@ -199,94 +355,61 @@
 
 .modalActions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   justify-content: flex-end;
 }
 
-/* Hormozi: Reflection sections */
-.reflectionSection {
-  margin-bottom: 1.25rem;
-}
-
-.reflectionLabel {
-  display: block;
-  font-size: 0.875rem;
-  color: var(--muted-foreground);
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-/* Star rating */
-.starRating {
+/* Checkpoint Prompt */
+.checkpointOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
   justify-content: center;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: var(--space-4);
 }
 
-.starButton {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  opacity: 0.3;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  padding: 0.25rem;
-}
-
-.starButton:hover {
-  opacity: 0.6;
-  transform: scale(1.1);
-}
-
-.starButton[data-active="true"] {
-  opacity: 1;
-}
-
-/* Energy slider */
-.energySlider {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.energyButton {
-  background-color: var(--card);
-  border: 2px solid var(--border);
-  border-radius: 0.5rem;
-  font-size: 1.75rem;
-  cursor: pointer;
-  padding: 0.75rem;
-  transition: all 0.15s ease;
-  opacity: 0.5;
-}
-
-.energyButton:hover {
-  opacity: 0.8;
-  transform: scale(1.05);
-}
-
-.energyButton[data-active="true"] {
-  opacity: 1;
-  border-color: var(--primary);
-  background-color: var(--accent);
-}
-
-/* Outcome input */
-.outcomeInput {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+.checkpointPrompt {
   background-color: var(--background);
-  color: var(--foreground);
-  font-size: 1rem;
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 20rem;
+  width: 100%;
+  box-shadow: var(--stroke-weak), var(--elevation-overlay);
   text-align: center;
 }
 
-.outcomeInput:focus {
-  outline: none;
-  border-color: var(--primary);
-  background-color: var(--card);
+.checkpointHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--success);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+
+.checkpointText {
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+  margin: 0 0 var(--space-5);
+}
+
+.checkpointActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.checkpointButton {
+  width: 100%;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  touch-action: manipulation;
 }
 
 @media (min-width: 768px) {
@@ -301,5 +424,13 @@
 
   .timerValue {
     font-size: 4rem;
+  }
+
+  .checkpointActions {
+    flex-direction: row;
+  }
+
+  .checkpointButton {
+    flex: 1;
   }
 }

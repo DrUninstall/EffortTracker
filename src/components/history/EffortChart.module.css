@@ -1,0 +1,165 @@
+/* EffortChart - Animated bar chart for effort trends */
+
+.container {
+  padding: var(--space-4);
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--stroke-weak);
+  position: relative;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--text-strong));
+  margin: 0;
+}
+
+.toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgb(var(--fill-weak));
+  border-radius: var(--radius-sm);
+}
+
+.toggleButton {
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(var(--text-weak));
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-cubic);
+}
+
+.toggleButton:hover {
+  color: rgb(var(--text-strong));
+}
+
+.toggleButton.active {
+  background: var(--card);
+  color: rgb(var(--text-strong));
+  box-shadow: var(--stroke-weak);
+}
+
+.chartWrapper {
+  display: flex;
+  gap: var(--space-2);
+  height: 150px;
+}
+
+.yAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 24px; /* Account for bar labels */
+  font-size: 0.625rem;
+  color: rgb(var(--text-weak));
+  font-family: var(--font-mono);
+  text-align: right;
+  min-width: 36px;
+}
+
+.chart {
+  flex: 1;
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-end;
+  padding-bottom: 24px; /* Space for labels */
+}
+
+.barContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  height: 100%;
+  cursor: pointer;
+}
+
+.barWrapper {
+  flex: 1;
+  width: 100%;
+  max-width: 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+}
+
+.barWrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--fill-weak));
+  border-radius: 4px 4px 0 0;
+}
+
+.bar {
+  width: 100%;
+  background: var(--primary);
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  min-height: 2px;
+  transition: background-color var(--duration-fast) var(--ease-out-cubic);
+}
+
+.barContainer:hover .bar {
+  background: var(--success);
+}
+
+.barLabel {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgb(var(--text-weak));
+  position: absolute;
+  bottom: 0;
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-overlay);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.tooltipValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--text-strong));
+  font-family: var(--font-mono);
+}
+
+.tooltipDate {
+  font-size: 0.6875rem;
+  color: rgb(var(--text-weak));
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}

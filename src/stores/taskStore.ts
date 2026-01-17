@@ -668,9 +668,27 @@ function computeDaysPerWeekProgress(
   };
 }
 
-// Selector for active tasks only
+// Selector for active tasks only (unsorted)
 export const selectActiveTasks = (state: TaskState) =>
   state.tasks.filter((t) => !t.is_archived);
+
+// Selector for active tasks sorted by priority and priorityRank
+export const selectActiveTasksSorted = (state: TaskState) =>
+  state.tasks
+    .filter((t) => !t.is_archived)
+    .sort((a, b) => {
+      // Sort by priority first (CORE=0, IMPORTANT=1, OPTIONAL=2)
+      const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+
+      // Then by priorityRank within each priority level (lower = higher priority)
+      const aRank = a.priorityRank ?? Infinity;
+      const bRank = b.priorityRank ?? Infinity;
+      if (aRank !== bRank) return aRank - bRank;
+
+      // Finally by name for unranked tasks
+      return a.name.localeCompare(b.name);
+    });
 
 // Selector for archived tasks
 export const selectArchivedTasks = (state: TaskState) =>

@@ -22,7 +22,7 @@ import {
   AlertTriangle,
   Sparkles,
 } from 'lucide-react';
-import { useTaskStore, selectActiveTasks, selectArchivedTasks } from '@/stores/taskStore';
+import { useTaskStore, selectActiveTasksSorted, selectArchivedTasks } from '@/stores/taskStore';
 import { Task, Priority, QuotaType, TaskType, PomodoroDefaults } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,7 +108,7 @@ export default function SettingsPage() {
     isHydrated,
   } = useTaskStore();
 
-  const activeTasks = useTaskStore(selectActiveTasks);
+  const activeTasks = useTaskStore(selectActiveTasksSorted);
   const archivedTasks = useTaskStore(selectArchivedTasks);
 
   const [showTaskDialog, setShowTaskDialog] = useState(false);

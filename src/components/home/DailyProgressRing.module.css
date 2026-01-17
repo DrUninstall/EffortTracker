@@ -17,7 +17,7 @@
 
 .segment {
   flex: 1;
-  background: var(--stroke-soft);
+  background: rgb(var(--grey-light-100));
   border-radius: 2px;
   transform-origin: bottom;
   transition: background-color 0.2s ease;

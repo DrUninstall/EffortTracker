@@ -384,7 +384,9 @@ export default function TimerPage() {
                       <span className={styles.taskOptionProgressLabel}>
                         {progress?.isDone
                           ? 'Done'
-                          : `${formatMinutes(progress?.progress || 0)}/${formatMinutes(progress?.effectiveQuota || 0)}`
+                          : progress?.progressUnit === 'count'
+                            ? `${progress.progress}/${progress.effectiveQuota}`
+                            : `${formatMinutes(progress?.progress || 0)}/${formatMinutes(progress?.effectiveQuota || 0)}`
                         }
                       </span>
                     </div>

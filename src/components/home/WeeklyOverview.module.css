@@ -81,10 +81,9 @@ html.dark .empty {
   background: rgb(var(--grey-dark-100));
 }
 
-/* Partial completion - gradient fill set inline */
+/* Partial completion - conic-gradient background is set inline in component */
 .partial {
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  /* no additional styles needed */
 }
 
 /* Complete state */

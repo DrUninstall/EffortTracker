@@ -354,22 +354,43 @@ export default function TimerPage() {
             </p>
           ) : (
             <div className={styles.taskList}>
-              {activeTasks.map((task) => (
-                <button
-                  key={task.id}
-                  className={styles.taskOption}
-                  onClick={() =>
-                    startTimer(
-                      task.id,
-                      task.name,
-                      'STOPWATCH',
-                      task.pomodoro_defaults
-                    )
-                  }
-                >
-                  {task.name}
-                </button>
-              ))}
+              {activeTasks.map((task) => {
+                const progress = getTaskProgress(task.id, selectedDate);
+                const percentComplete = progress
+                  ? Math.min(100, (progress.progress / progress.effectiveQuota) * 100)
+                  : 0;
+
+                return (
+                  <button
+                    key={task.id}
+                    className={`${styles.taskOption} ${progress?.isDone ? styles.taskOptionDone : ''}`}
+                    onClick={() =>
+                      startTimer(
+                        task.id,
+                        task.name,
+                        'STOPWATCH',
+                        task.pomodoro_defaults
+                      )
+                    }
+                  >
+                    <span className={styles.taskOptionName}>{task.name}</span>
+                    <div className={styles.taskOptionProgress}>
+                      <div className={styles.taskOptionProgressBar}>
+                        <div
+                          className={styles.taskOptionProgressFill}
+                          style={{ width: `${percentComplete}%` }}
+                        />
+                      </div>
+                      <span className={styles.taskOptionProgressLabel}>
+                        {progress?.isDone
+                          ? 'Done'
+                          : `${formatMinutes(progress?.progress || 0)}/${formatMinutes(progress?.effectiveQuota || 0)}`
+                        }
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

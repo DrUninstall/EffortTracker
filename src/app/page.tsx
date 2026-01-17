@@ -156,7 +156,7 @@ export default function TodayPage() {
   };
 
   // Handlers
-  const handleQuickAdd = (taskId: string, amount: number, taskName: string, isHabit: boolean, note?: string) => {
+  const handleQuickAdd = useCallback((taskId: string, amount: number, taskName: string, isHabit: boolean, note?: string) => {
     // Get progress BEFORE adding the log to check if this will complete the quota
     const progressBefore = getTaskProgress(taskId, selectedDate);
     const wasDoneBefore = progressBefore?.isDone ?? false;
@@ -184,7 +184,7 @@ export default function TodayPage() {
       setCelebrationTaskName(taskName);
       setShowCelebration(true);
     }
-  };
+  }, [getTaskProgress, selectedDate, addLog]);
 
   const handleStartTimer = (
     taskId: string,

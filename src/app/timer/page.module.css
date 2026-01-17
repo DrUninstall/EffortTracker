@@ -170,6 +170,9 @@
 }
 
 .taskOption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
   border: none;
   border-radius: var(--radius-sm);
@@ -186,6 +189,49 @@
 .taskOption:hover {
   background-color: var(--accent);
   box-shadow: var(--stroke-weak-hover);
+}
+
+.taskOptionName {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.taskOptionProgress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.taskOptionProgressBar {
+  flex: 1;
+  height: 4px;
+  background: var(--secondary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.taskOptionProgressFill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 200ms var(--ease-out-cubic);
+}
+
+.taskOptionDone .taskOptionProgressFill {
+  background: var(--success);
+}
+
+.taskOptionProgressLabel {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  min-width: 4rem;
+  text-align: right;
+}
+
+.taskOptionDone .taskOptionProgressLabel {
+  color: var(--success);
+  font-weight: 500;
 }
 
 /* Mode Selector */

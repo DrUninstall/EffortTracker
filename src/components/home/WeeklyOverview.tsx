@@ -109,7 +109,7 @@ export function WeeklyOverview() {
                 style={
                   day.status === 'partial'
                     ? {
-                        background: `conic-gradient(var(--primary) ${day.completionPercent * 3.6}deg, rgba(var(--grey-light-100)) ${day.completionPercent * 3.6}deg)`,
+                        background: `conic-gradient(var(--primary) 0deg ${day.completionPercent * 3.6}deg, var(--border) ${day.completionPercent * 3.6}deg 360deg)`,
                       }
                     : undefined
                 }

@@ -38,3 +38,10 @@ next-env.d.ts
 
 # Windows artifacts
 nul
+
+# Capacitor / Android
+/android/
+/ios/
+.capacitor/
+*.jks
+*.keystore

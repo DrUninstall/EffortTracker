@@ -8,6 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # Start development server (localhost:3000)
 npm run build    # Build for production (static export)
 npm run lint     # Run ESLint
+
+# Android (requires Capacitor setup - see ANDROID_QUICKSTART.md)
+npm run android:init         # Initialize Android platform (one-time)
+npm run android:sync         # Build web app and sync to Android
+npm run android:open         # Open in Android Studio
+npm run android:build        # Build debug APK
+npm run android:build:release  # Build release APK
 ```
 
 ## Architecture
@@ -50,3 +57,38 @@ Zustand store (`src/stores/taskStore.ts`) with persist middleware handles all ap
 - `src/types/index.ts` - All TypeScript types
 - `src/lib/storage.ts` - IndexedDB/localStorage adapter
 - `src/utils/` - Date utilities, UUID generation
+
+## Android App
+
+The web app can be wrapped as a native Android APK using Capacitor.
+
+### Quick Start
+
+See `ANDROID_QUICKSTART.md` for setup and build instructions.
+
+### How it Works
+
+- Capacitor wraps the Next.js static export (`/out`) in a native WebView
+- IndexedDB and localStorage work natively (no code changes needed)
+- The app runs completely offline with native performance
+- `capacitor.config.ts` configures the native wrapper
+
+### Build Process
+
+1. Install Capacitor: `npm install @capacitor/core @capacitor/cli @capacitor/android`
+2. Initialize: `npm run android:init`
+3. Build APK: `npm run android:build`
+4. Output: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Requirements
+
+- Android Studio (includes JDK)
+- For device testing: Enable USB debugging
+- For Play Store: Create signed release build (see `ANDROID_BUILD.md`)
+
+### Storage Compatibility
+
+The existing IndexedDB/localStorage storage layer works perfectly in Capacitor's WebView:
+- All data persists locally on device
+- No API changes needed
+- Same storage limits as native apps

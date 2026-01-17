@@ -1,8 +1,27 @@
 # Android Build - Quick Start
 
-Follow these steps to build your Effort Ledger Android APK.
+## 🤖 Easiest Method: Automated GitHub Actions (Recommended!)
 
-## First Time Setup
+**No commands needed - builds automatically!**
+
+See `ANDROID_AUTOMATED_BUILD.md` for the fully automated approach.
+
+1. Push your code to GitHub
+2. Wait ~5-10 minutes for automatic build
+3. Download APK from GitHub Actions artifacts (from your phone!)
+
+**Or manually trigger a build:**
+- Go to GitHub Actions tab
+- Click "Run workflow"
+- Download APK when done
+
+---
+
+## 💻 Manual Build (For Local Development)
+
+Follow these steps to build your Effort Ledger Android APK locally.
+
+### First Time Setup
 
 ```bash
 # 1. Install Capacitor (if network blocked in Claude Code environment, run locally)
